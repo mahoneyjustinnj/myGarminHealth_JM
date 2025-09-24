@@ -47,26 +47,30 @@ system("git status")
 #first, i want to add the untracted files to github 
 #all at once using:
 system("git add .")
-#or, 1 at a time using
-# git add check_sqlite_data_250903.R
-# git add clean_grc_data.R
-# git add eco_obj_code_TO_USE.csv
-# git add econ_obj_code.csv
-# git add grc_cleaned_final_final_250904.csv
 
 #2nd - i will commit the changes using:
-system("git commit -m 'adding latest updates 250924'  ")
-system("git commit -m 'Add postal code coordinates'  ")
+system("git commit -m 'adding latest updates to my health repo'  ")
+# [main 068ee51] adding latest updates to my health repo
+# 3 files changed, 85 insertions(+), 1 deletion(-)
+# create mode 100644 .gitignore
+# delete mode 100644 .gitigore
+# create mode 100644 connect_to_github_and_push_pull.R
+
 # 3rd - i will push the changes to github
-system("git push origin master")
-#result
-# To https://github.com/mahoneyjustinnj/cleaned_contracts
-# 655bba8..720e306  master -> master
+system("git push origin main")
+# To https://github.com/mahoneyjustinnj/myGarminHealth_JM.git
+# 3ae5dd6..068ee51  main -> main
+
 #get the status
 system("git status")
-# On branch master
-# Your branch is up to date with 'origin/master'.
-
+# On branch main
+# Your branch is up to date with 'origin/main'.
+# Changes not staged for commit:
+#   (use "git add <file>..." to update what will be committed)
+# (use "git restore <file>..." to discard changes in working directory)
+# modified:   connect_to_github_and_push_pull.R
+# 
+# no changes added to commit (use "git add" and/or "git commit -a")
 
 
 
