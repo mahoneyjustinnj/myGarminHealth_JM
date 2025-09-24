@@ -1,0 +1,11 @@
+sas_key
+sas_key.pub
+
+# Ignore R history and data
+.Rhistory
+.RData
+
+to_run_from_cmd_line.txt
+
+README.md
+
