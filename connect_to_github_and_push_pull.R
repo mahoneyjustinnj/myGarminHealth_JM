@@ -1,4 +1,6 @@
+gc() #garbage collection, to clear the memory
 setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+
 # this system command is same as running from the command line
 # gives list of remote repositories connected to your local Git project,
 system("git remote -v")
@@ -49,7 +51,7 @@ system("git status")
 system("git add .")
 
 #2nd - i will commit the changes using:
-system("git commit -m 'adding latest updates to my health repo'  ")
+system("git commit -m 'adding latest updates to my health repo 3rd time ...'  ")
 # [main 068ee51] adding latest updates to my health repo
 # 3 files changed, 85 insertions(+), 1 deletion(-)
 # create mode 100644 .gitignore

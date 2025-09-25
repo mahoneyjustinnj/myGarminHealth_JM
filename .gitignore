@@ -9,3 +9,6 @@ to_run_from_cmd_line.txt
 
 README.md
 
+cods.py
+# Ignore the entire python_scripts folder
+python_scripts/
