@@ -1,0 +1,501 @@
+print("cat")
+<div class="chunk" id="unnamed-chunk-1"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">cat</span><span class="hl def">(</span><span class="hl sng">&quot;\014&quot;</span><span class="hl def">)</span>
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">gc</span><span class="hl def">()</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##          used (Mb) gc trigger (Mb) max used (Mb)
+## Ncells 377883 20.2     692974 37.1   692974 37.1
+## Vcells 751504  5.8    8388608 64.0  1930503 14.8
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">print</span><span class="hl def">(</span><span class="hl sng">&quot;cat&quot;</span><span class="hl def">)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## [1] &quot;cat&quot;
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">rm</span><span class="hl def">(</span><span class="hl kwc">list</span><span class="hl def">=</span><span class="hl kwd">ls</span><span class="hl def">())</span>
+<span class="hl kwd">setwd</span><span class="hl def">(</span><span class="hl sng">&quot;/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM&quot;</span><span class="hl def">)</span>
+</pre></div>
+</div></div>
+
+<div class="chunk" id="unnamed-chunk-2"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Install required packages</span>
+<span class="hl com">#install.packages(c(&quot;tidyverse&quot;, &quot;jsonlite&quot;))</span>
+
+<span class="hl com"># Load libraries</span>
+<span class="hl kwd">library</span><span class="hl def">(tidyverse)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.5
+## ✔ forcats   1.0.0     ✔ stringr   1.5.1
+## ✔ ggplot2   3.5.2     ✔ tibble    3.2.1
+## ✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+## ✔ purrr     1.0.2     
+## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl def">(lubridate)</span>
+<span class="hl kwd">library</span><span class="hl def">(ggplot2)</span>
+<span class="hl kwd">library</span><span class="hl def">(plotly)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## 
+## Attaching package: 'plotly'
+## 
+## The following object is masked from 'package:ggplot2':
+## 
+##     last_plot
+## 
+## The following object is masked from 'package:stats':
+## 
+##     filter
+## 
+## The following object is masked from 'package:graphics':
+## 
+##     layout
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl def">(dplyr)</span>
+<span class="hl kwd">library</span><span class="hl def">(skimr)</span>
+<span class="hl kwd">library</span><span class="hl def">(tibble)</span>
+<span class="hl kwd">library</span><span class="hl def">(htmltools)</span>
+<span class="hl kwd">library</span><span class="hl def">(tibbletime)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## 
+## Attaching package: 'tibbletime'
+## 
+## The following object is masked from 'package:stats':
+## 
+##     filter
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl def">(zoo)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## 
+## Attaching package: 'zoo'
+## 
+## The following objects are masked from 'package:base':
+## 
+##     as.Date, as.Date.numeric
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl com">#install.packages(&quot;skimr&quot;)</span>
+<span class="hl com">#library(jsonlite)</span>
+
+<span class="hl com"># Read the CSV</span>
+<span class="hl def">df_raw</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">read_csv</span><span class="hl def">(</span><span class="hl sng">&quot;python_scripts/heart.csv&quot;</span><span class="hl def">)</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## Rows: 38 Columns: 13
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr  (2): heartRateValueDescriptors, heartRateValues
+## dbl  (5): userProfilePK, maxHeartRate, minHeartRate, restingHeartRate, lastS...
+## dttm (4): startTimestampGMT, endTimestampGMT, startTimestampLocal, endTimest...
+## date (2): calendarDate, summaryDate
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl def">df</span> <span class="hl kwb">&lt;-</span> <span class="hl def">df_raw</span>
+<span class="hl kwd">names</span><span class="hl def">(df)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##  [1] &quot;userProfilePK&quot;                    &quot;calendarDate&quot;                    
+##  [3] &quot;startTimestampGMT&quot;                &quot;endTimestampGMT&quot;                 
+##  [5] &quot;startTimestampLocal&quot;              &quot;endTimestampLocal&quot;               
+##  [7] &quot;maxHeartRate&quot;                     &quot;minHeartRate&quot;                    
+##  [9] &quot;restingHeartRate&quot;                 &quot;lastSevenDaysAvgRestingHeartRate&quot;
+## [11] &quot;heartRateValueDescriptors&quot;        &quot;heartRateValues&quot;                 
+## [13] &quot;summaryDate&quot;
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl def">dtwp</span> <span class="hl kwb">&lt;-</span> <span class="hl def">df</span> <span class="hl opt">%&gt;%</span> <span class="hl kwd">select</span><span class="hl def">(calendarDate,heartRateValues)</span>
+<span class="hl def">de</span> <span class="hl kwb">&lt;-</span> <span class="hl def">df</span> <span class="hl opt">%&gt;%</span> <span class="hl kwd">select</span><span class="hl def">(</span><span class="hl opt">-</span><span class="hl def">heartRateValues,</span> <span class="hl opt">-</span><span class="hl def">heartRateValueDescriptors)</span>
+<span class="hl com"># names(df)</span>
+<span class="hl com"># dde &lt;- df %&gt;% select(heartRateValueDescriptors) %&gt;%  as.data.frame() </span>
+<span class="hl com"># View(dde)</span>
+
+<span class="hl com"># Replace 'None' with NULL and parse JSON</span>
+<span class="hl def">dtwp1</span> <span class="hl kwb">&lt;-</span> <span class="hl def">dtwp</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">mutate</span><span class="hl def">(</span><span class="hl kwc">heartRateValues</span> <span class="hl def">=</span> <span class="hl kwd">map</span><span class="hl def">(heartRateValues,</span> <span class="hl opt">~</span> <span class="hl def">{</span>
+    <span class="hl com"># Replace 'None' with NULL in the JSON string</span>
+    <span class="hl def">.x</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">gsub</span><span class="hl def">(</span><span class="hl sng">&quot;None&quot;</span><span class="hl def">,</span> <span class="hl sng">&quot;null&quot;</span><span class="hl def">, .x)</span>
+    <span class="hl com"># Parse the JSON</span>
+    <span class="hl def">parsed_data</span> <span class="hl kwb">&lt;-</span> <span class="hl def">jsonlite</span><span class="hl opt">::</span><span class="hl kwd">fromJSON</span><span class="hl def">(.x)</span>
+    <span class="hl kwd">return</span><span class="hl def">(parsed_data)</span>
+  <span class="hl def">}))</span>
+
+<span class="hl def">dtwp2</span> <span class="hl kwb">&lt;-</span> <span class="hl def">dtwp1</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">unnest</span><span class="hl def">(</span><span class="hl kwc">cols</span> <span class="hl def">= heartRateValues)</span>
+
+<span class="hl def">data</span> <span class="hl kwb">&lt;-</span>  <span class="hl kwd">data.frame</span><span class="hl def">(dtwp2</span><span class="hl opt">$</span><span class="hl def">calendarDate, dtwp2</span><span class="hl opt">$</span><span class="hl def">heartRateValues[,</span><span class="hl num">1</span><span class="hl def">], dtwp2</span><span class="hl opt">$</span><span class="hl def">heartRateValues[,</span><span class="hl num">2</span><span class="hl def">])</span>
+<span class="hl kwd">colnames</span><span class="hl def">(data)</span> <span class="hl kwb">&lt;-</span>  <span class="hl kwd">c</span><span class="hl def">(</span><span class="hl sng">&quot;date&quot;</span><span class="hl def">,</span> <span class="hl sng">&quot;seconds&quot;</span><span class="hl def">,</span> <span class="hl sng">&quot;heartrate&quot;</span><span class="hl def">)</span>
+<span class="hl com">#head(data)</span>
+<span class="hl com">#str(data)</span>
+<span class="hl com">#View(data)</span>
+</pre></div>
+</div></div>
+
+### clears the Viewer
+<div class="chunk" id="unnamed-chunk-3"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Create a blank HTML file</span>
+<span class="hl def">blank_page</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">tempfile</span><span class="hl def">(</span><span class="hl kwc">fileext</span> <span class="hl def">=</span> <span class="hl sng">&quot;.html&quot;</span><span class="hl def">)</span>
+<span class="hl kwd">save_html</span><span class="hl def">(tags</span><span class="hl opt">$</span><span class="hl kwd">html</span><span class="hl def">(),</span> <span class="hl kwc">file</span> <span class="hl def">= blank_page)</span>
+
+<span class="hl com"># Load it into the Viewer</span>
+<span class="hl def">viewer</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">getOption</span><span class="hl def">(</span><span class="hl sng">&quot;viewer&quot;</span><span class="hl def">)</span>
+<span class="hl kwd">viewer</span><span class="hl def">(blank_page)</span>
+</pre></div>
+<div class="error"><pre class="knitr r">## Error in viewer(blank_page): could not find function &quot;viewer&quot;
+</pre></div>
+</div></div>
+
+# Plot the hr Results
+<div class="chunk" id="unnamed-chunk-4"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Convert seconds to POSIXct time</span>
+<span class="hl def">data</span><span class="hl opt">$</span><span class="hl def">time</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as.POSIXct</span><span class="hl def">(data</span><span class="hl opt">$</span><span class="hl def">seconds</span> <span class="hl opt">/</span> <span class="hl num">1000</span><span class="hl def">,</span> <span class="hl kwc">origin</span> <span class="hl def">=</span> <span class="hl sng">&quot;1970-01-01&quot;</span><span class="hl def">,</span> <span class="hl kwc">tz</span> <span class="hl def">=</span> <span class="hl sng">&quot;UTC&quot;</span><span class="hl def">)</span>
+
+<span class="hl com"># Use plot_ly directly with WebGL</span>
+<span class="hl kwd">plot_ly</span><span class="hl def">(</span>
+  <span class="hl kwc">data</span> <span class="hl def">= data,</span>
+  <span class="hl kwc">x</span> <span class="hl def">=</span> <span class="hl opt">~</span><span class="hl def">time,</span>
+  <span class="hl kwc">y</span> <span class="hl def">=</span> <span class="hl opt">~</span><span class="hl def">heartrate,</span>
+  <span class="hl kwc">type</span> <span class="hl def">=</span> <span class="hl sng">&quot;scattergl&quot;</span><span class="hl def">,</span>
+  <span class="hl kwc">mode</span> <span class="hl def">=</span> <span class="hl sng">&quot;markers&quot;</span><span class="hl def">,</span>
+  <span class="hl kwc">marker</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span><span class="hl kwc">color</span> <span class="hl def">=</span> <span class="hl sng">&quot;#E74C3C&quot;</span><span class="hl def">,</span> <span class="hl kwc">size</span> <span class="hl def">=</span> <span class="hl num">3</span><span class="hl def">,</span> <span class="hl kwc">opacity</span> <span class="hl def">=</span> <span class="hl num">0.6</span><span class="hl def">)</span>
+<span class="hl def">)</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">layout</span><span class="hl def">(</span>
+    <span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Heart Rate Over Time&quot;</span><span class="hl def">,</span>
+    <span class="hl kwc">xaxis</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span><span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Time (UTC)&quot;</span><span class="hl def">),</span>
+    <span class="hl kwc">yaxis</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span><span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Heart Rate (bpm)&quot;</span><span class="hl def">)</span>
+  <span class="hl def">)</span>
+</pre></div>
+<div class="warning"><pre class="knitr r">## Warning: Ignoring 21 observations
+</pre></div>
+<div class="error"><pre class="knitr r">## Error in loadNamespace(name): there is no package called 'webshot'
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">str</span><span class="hl def">(data)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## 'data.frame':	25603 obs. of  4 variables:
+##  $ date     : Date, format: &quot;2025-08-19&quot; &quot;2025-08-19&quot; ...
+##  $ seconds  : num  1.76e+12 1.76e+12 1.76e+12 1.76e+12 1.76e+12 ...
+##  $ heartrate: num  NA 72 71 84 86 88 87 90 97 94 ...
+##  $ time     : POSIXct, format: &quot;2025-08-19 16:36:00&quot; &quot;2025-08-19 16:38:00&quot; ...
+</pre></div>
+</div></div>
+
+<div class="chunk" id="unnamed-chunk-5"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">summary</span><span class="hl def">(data</span><span class="hl opt">$</span><span class="hl def">heartrate)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+##   51.00   65.00   73.00   74.55   81.00  185.00      21
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl def">data</span> <span class="hl kwb">&lt;-</span> <span class="hl def">data</span> <span class="hl opt">%&gt;%</span> <span class="hl kwd">mutate</span><span class="hl def">(</span><span class="hl kwc">heartrate</span> <span class="hl def">=</span> <span class="hl kwd">na.approx</span><span class="hl def">(heartrate,</span> <span class="hl kwc">na.rm</span> <span class="hl def">=</span> <span class="hl num">FALSE</span><span class="hl def">))</span>
+<span class="hl def">data</span> <span class="hl kwb">&lt;-</span> <span class="hl def">data[</span><span class="hl opt">-</span><span class="hl num">1</span><span class="hl def">, ]</span>
+</pre></div>
+</div></div>
+
+
+#analyze the time series data
+<div class="chunk" id="unnamed-chunk-6"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">skim</span><span class="hl def">(data)</span>
+</pre></div>
+<div class="warning"><pre class="knitr r">## Warning in attr(x, &quot;align&quot;): 'xfun::attr()' is deprecated.
+## Use 'xfun::attr2()' instead.
+## See help(&quot;Deprecated&quot;)
+
+## Warning in attr(x, &quot;align&quot;): 'xfun::attr()' is deprecated.
+## Use 'xfun::attr2()' instead.
+## See help(&quot;Deprecated&quot;)
+
+## Warning in attr(x, &quot;align&quot;): 'xfun::attr()' is deprecated.
+## Use 'xfun::attr2()' instead.
+## See help(&quot;Deprecated&quot;)
+
+## Warning in attr(x, &quot;align&quot;): 'xfun::attr()' is deprecated.
+## Use 'xfun::attr2()' instead.
+## See help(&quot;Deprecated&quot;)
+</pre></div>
+
+<table style='width: auto;'
+      class='table table-condensed'>
+<caption>Data summary</caption>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Name </td>
+   <td style="text-align:left;"> data </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Number of rows </td>
+   <td style="text-align:left;"> 25602 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Number of columns </td>
+   <td style="text-align:left;"> 4 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> _______________________ </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Column type frequency: </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Date </td>
+   <td style="text-align:left;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> numeric </td>
+   <td style="text-align:left;"> 2 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> POSIXct </td>
+   <td style="text-align:left;"> 1 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> ________________________ </td>
+   <td style="text-align:left;">  </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Group variables </td>
+   <td style="text-align:left;"> None </td>
+  </tr>
+</tbody>
+</table>
+
+
+**Variable type: Date**
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> skim_variable </th>
+   <th style="text-align:right;"> n_missing </th>
+   <th style="text-align:right;"> complete_rate </th>
+   <th style="text-align:left;"> min </th>
+   <th style="text-align:left;"> max </th>
+   <th style="text-align:left;"> median </th>
+   <th style="text-align:right;"> n_unique </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> date </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:left;"> 2025-08-19 </td>
+   <td style="text-align:left;"> 2025-09-25 </td>
+   <td style="text-align:left;"> 2025-09-06 </td>
+   <td style="text-align:right;"> 38 </td>
+  </tr>
+</tbody>
+</table>
+
+
+**Variable type: numeric**
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> skim_variable </th>
+   <th style="text-align:right;"> n_missing </th>
+   <th style="text-align:right;"> complete_rate </th>
+   <th style="text-align:right;"> mean </th>
+   <th style="text-align:right;"> sd </th>
+   <th style="text-align:right;"> p0 </th>
+   <th style="text-align:right;"> p25 </th>
+   <th style="text-align:right;"> p50 </th>
+   <th style="text-align:right;"> p75 </th>
+   <th style="text-align:right;"> p100 </th>
+   <th style="text-align:left;"> hist </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> seconds </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 1.757223e+12 </td>
+   <td style="text-align:right;"> 923279900.71 </td>
+   <td style="text-align:right;"> 1.755621e+12 </td>
+   <td style="text-align:right;"> 1.756412e+12 </td>
+   <td style="text-align:right;"> 1.757204e+12 </td>
+   <td style="text-align:right;"> 1.758008e+12 </td>
+   <td style="text-align:right;"> 1.758818e+12 </td>
+   <td style="text-align:left;"> ▇▇▇▇▇ </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> heartrate </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:right;"> 7.456000e+01 </td>
+   <td style="text-align:right;"> 13.12 </td>
+   <td style="text-align:right;"> 5.100000e+01 </td>
+   <td style="text-align:right;"> 6.500000e+01 </td>
+   <td style="text-align:right;"> 7.300000e+01 </td>
+   <td style="text-align:right;"> 8.100000e+01 </td>
+   <td style="text-align:right;"> 1.850000e+02 </td>
+   <td style="text-align:left;"> ▇▅▁▁▁ </td>
+  </tr>
+</tbody>
+</table>
+
+
+**Variable type: POSIXct**
+
+<table>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> skim_variable </th>
+   <th style="text-align:right;"> n_missing </th>
+   <th style="text-align:right;"> complete_rate </th>
+   <th style="text-align:left;"> min </th>
+   <th style="text-align:left;"> max </th>
+   <th style="text-align:left;"> median </th>
+   <th style="text-align:right;"> n_unique </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> time </td>
+   <td style="text-align:right;"> 0 </td>
+   <td style="text-align:right;"> 1 </td>
+   <td style="text-align:left;"> 2025-08-19 16:38:00 </td>
+   <td style="text-align:left;"> 2025-09-25 16:30:00 </td>
+   <td style="text-align:left;"> 2025-09-07 00:11:00 </td>
+   <td style="text-align:right;"> 25602 </td>
+  </tr>
+</tbody>
+</table>
+
+<div class="source"><pre class="knitr r"><span class="hl com">#preserve</span>
+<span class="hl def">df</span> <span class="hl kwb">&lt;-</span> <span class="hl def">data</span>
+<span class="hl com">#colnames(data) &lt;- c(&quot;date&quot;, &quot;time&quot;, &quot;heartrate&quot;)</span>
+<span class="hl com">#install.packages(c(&quot;tidyverse&quot;, &quot;lubridate&quot;, &quot;tibbletime&quot;, &quot;anomalize&quot;))</span>
+<span class="hl com">#data &lt;- as_tibble(data) not needed, causes errors</span>
+<span class="hl com"># Make it a time-aware tibble</span>
+<span class="hl def">data_ts</span> <span class="hl kwb">&lt;-</span> <span class="hl kwd">as_tbl_time</span><span class="hl def">(data,</span> <span class="hl kwc">index</span> <span class="hl def">= time)</span>
+
+<span class="hl kwd">library</span><span class="hl def">(anomalize)</span>
+
+<span class="hl com"># Apply anomaly detection</span>
+<span class="hl def">results</span> <span class="hl kwb">&lt;-</span> <span class="hl def">data_ts</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">time_decompose</span><span class="hl def">(heartrate,</span> <span class="hl kwc">method</span> <span class="hl def">=</span> <span class="hl sng">&quot;stl&quot;</span><span class="hl def">,</span> <span class="hl kwc">frequency</span> <span class="hl def">=</span> <span class="hl sng">&quot;auto&quot;</span><span class="hl def">,</span> <span class="hl kwc">trend</span> <span class="hl def">=</span> <span class="hl sng">&quot;auto&quot;</span><span class="hl def">)</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">anomalize</span><span class="hl def">(remainder,</span> <span class="hl kwc">method</span> <span class="hl def">=</span> <span class="hl sng">&quot;iqr&quot;</span><span class="hl def">)</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">time_recompose</span><span class="hl def">()</span>
+</pre></div>
+<div class="message"><pre class="knitr r">## frequency = 720 minutes
+</pre></div>
+<div class="message"><pre class="knitr r">## trend = 9507 minutes
+</pre></div>
+<div class="message"><pre class="knitr r">## Registered S3 method overwritten by 'quantmod':
+##   method            from
+##   as.zoo.data.frame zoo
+</pre></div>
+<div class="source"><pre class="knitr r"><span class="hl kwd">str</span><span class="hl def">(results)</span>
+</pre></div>
+<div class="output"><pre class="knitr r">## tbl_time [25,602 × 10] (S3: tbl_time/tbl_df/tbl/data.frame)
+##  $ date         : POSIXct[1:25602], format: &quot;2025-08-19 16:38:00&quot; &quot;2025-08-19 16:40:00&quot; ...
+##  $ observed     : num [1:25602] 72 71 84 86 88 87 90 97 94 74 ...
+##  $ season       : num [1:25602] 2.675 0.913 2.714 2.126 2.595 ...
+##  $ trend        : num [1:25602] 72.8 72.8 72.8 72.8 72.8 ...
+##  $ remainder    : num [1:25602] -3.51 -2.75 8.45 11.03 12.57 ...
+##  $ remainder_l1 : num [1:25602] -51.4 -51.4 -51.4 -51.4 -51.4 ...
+##  $ remainder_l2 : num [1:25602] 51.8 51.8 51.8 51.8 51.8 ...
+##  $ anomaly      : Named chr [1:25602] &quot;No&quot; &quot;No&quot; &quot;No&quot; &quot;No&quot; ...
+##   ..- attr(*, &quot;names&quot;)= chr [1:25602] &quot;25%&quot; &quot;25%&quot; &quot;25%&quot; &quot;25%&quot; ...
+##  $ recomposed_l1: num [1:25602] 24.1 22.3 24.1 23.5 24 ...
+##  $ recomposed_l2: num [1:25602] 127 126 127 127 127 ...
+##  - attr(*, &quot;index_quo&quot;)= language ~date
+##   ..- attr(*, &quot;.Environment&quot;)=&lt;environment: 0x5b1de9cd53a0&gt; 
+##  - attr(*, &quot;index_time_zone&quot;)= chr &quot;UTC&quot;
+</pre></div>
+</div></div>
+
+Plot the anomalies
+<div class="chunk" id="unnamed-chunk-7"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl kwd">library</span><span class="hl def">(plotly)</span>
+
+<span class="hl com"># Convert anomaly column to logical (TRUE/FALSE)</span>
+<span class="hl def">results</span><span class="hl opt">$</span><span class="hl def">anomaly_flag</span> <span class="hl kwb">&lt;-</span> <span class="hl def">results</span><span class="hl opt">$</span><span class="hl def">anomaly</span> <span class="hl opt">==</span> <span class="hl sng">&quot;Yes&quot;</span>
+
+<span class="hl com"># Use WebGL for fast rendering</span>
+<span class="hl kwd">plot_ly</span><span class="hl def">(</span>
+  <span class="hl kwc">data</span> <span class="hl def">= results,</span>
+  <span class="hl kwc">x</span> <span class="hl def">=</span> <span class="hl opt">~</span><span class="hl def">date,</span>
+  <span class="hl kwc">y</span> <span class="hl def">=</span> <span class="hl opt">~</span><span class="hl def">observed,</span>
+  <span class="hl kwc">type</span> <span class="hl def">=</span> <span class="hl sng">&quot;scattergl&quot;</span><span class="hl def">,</span>
+  <span class="hl kwc">mode</span> <span class="hl def">=</span> <span class="hl sng">&quot;markers&quot;</span><span class="hl def">,</span>
+  <span class="hl kwc">marker</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span>
+    <span class="hl kwc">color</span> <span class="hl def">=</span> <span class="hl kwd">ifelse</span><span class="hl def">(results</span><span class="hl opt">$</span><span class="hl def">anomaly_flag,</span> <span class="hl sng">&quot;#E74C3C&quot;</span><span class="hl def">,</span> <span class="hl sng">&quot;#2C3E50&quot;</span><span class="hl def">),</span>
+    <span class="hl kwc">size</span> <span class="hl def">=</span> <span class="hl num">3</span><span class="hl def">,</span>
+    <span class="hl kwc">opacity</span> <span class="hl def">=</span> <span class="hl num">0.6</span>
+  <span class="hl def">)</span>
+<span class="hl def">)</span> <span class="hl opt">%&gt;%</span>
+  <span class="hl kwd">layout</span><span class="hl def">(</span>
+    <span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Heart Rate Anomaly Detection&quot;</span><span class="hl def">,</span>
+    <span class="hl kwc">xaxis</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span><span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Time (UTC)&quot;</span><span class="hl def">),</span>
+    <span class="hl kwc">yaxis</span> <span class="hl def">=</span> <span class="hl kwd">list</span><span class="hl def">(</span><span class="hl kwc">title</span> <span class="hl def">=</span> <span class="hl sng">&quot;Heart Rate (bpm)&quot;</span><span class="hl def">)</span>
+  <span class="hl def">)</span>
+</pre></div>
+<div class="error"><pre class="knitr r">## Error in loadNamespace(name): there is no package called 'webshot'
+</pre></div>
+</div></div>
+
+
+
+
+
+
+
+
+###########################
+# this code not viable since it only uses 10% of the points
+<div class="chunk" id="unnamed-chunk-8"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># library(ggplot2)</span>
+<span class="hl com"># library(plotly)</span>
+<span class="hl com"># </span>
+<span class="hl com"># # Convert seconds to POSIXct time</span>
+<span class="hl com"># data$time &lt;- as.POSIXct(data$seconds / 1000, origin = &quot;1970-01-01&quot;, tz = &quot;UTC&quot;)</span>
+<span class="hl com"># </span>
+<span class="hl com"># # Create ggplot</span>
+<span class="hl com"># p &lt;- ggplot(data, aes(x = time, y = heartrate)) +</span>
+<span class="hl com">#   geom_line(color = &quot;#2C3E50&quot;, size = 1) +</span>
+<span class="hl com">#   geom_point(color = &quot;#E74C3C&quot;, size = 2, alpha = 0.7) +</span>
+<span class="hl com">#   labs(</span>
+<span class="hl com">#     title = &quot;Heart Rate Over Time&quot;,</span>
+<span class="hl com">#     x = &quot;Time (UTC)&quot;,</span>
+<span class="hl com">#     y = &quot;Heart Rate (bpm)&quot;</span>
+<span class="hl com">#   ) +</span>
+<span class="hl com">#   theme_minimal(base_size = 14) +</span>
+<span class="hl com">#   theme(</span>
+<span class="hl com">#     plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),</span>
+<span class="hl com">#     axis.title.x = element_text(margin = margin(t = 10)),</span>
+<span class="hl com">#     axis.title.y = element_text(margin = margin(r = 10))</span>
+<span class="hl com">#   )</span>
+<span class="hl com"># </span>
+<span class="hl com"># # Make it interactive</span>
+<span class="hl com"># #ggplotly(p)</span>
+</pre></div>
+</div></div>
+
+# this code not viable since 25000 pts overwhelms the Chrome
+<div class="chunk" id="unnamed-chunk-9"><div class="rcode"><div class="source"><pre class="knitr r"><span class="hl com"># Downsample the data to reduce rendering load</span>
+<span class="hl com"># Example: keep every 10th point</span>
+<span class="hl com"># data_slim &lt;- data %&gt;% slice(seq(1, n(), by = 10))</span>
+<span class="hl com"># </span>
+<span class="hl com"># # Convert seconds to POSIXct time</span>
+<span class="hl com"># data_slim$time &lt;- as.POSIXct(data_slim$seconds / 1000, origin = &quot;1970-01-01&quot;, tz = &quot;UTC&quot;)</span>
+<span class="hl com"># </span>
+<span class="hl com"># # Create ggplot</span>
+<span class="hl com"># p &lt;- ggplot(data_slim, aes(x = time, y = heartrate)) +</span>
+<span class="hl com">#   geom_line(color = &quot;#2C3E50&quot;, size = 1) +</span>
+<span class="hl com">#   geom_point(color = &quot;#E74C3C&quot;, size = 2, alpha = 0.7) +</span>
+<span class="hl com">#   labs(</span>
+<span class="hl com">#     title = &quot;Heart Rate Over Time&quot;,</span>
+<span class="hl com">#     x = &quot;Time (UTC)&quot;,</span>
+<span class="hl com">#     y = &quot;Heart Rate (bpm)&quot;</span>
+<span class="hl com">#   ) +</span>
+<span class="hl com">#   theme_minimal(base_size = 14) +</span>
+<span class="hl com">#   theme(</span>
+<span class="hl com">#     plot.title = element_text(face = &quot;bold&quot;, hjust = 0.5),</span>
+<span class="hl com">#     axis.title.x = element_text(margin = margin(t = 10)),</span>
+<span class="hl com">#     axis.title.y = element_text(margin = margin(r = 10))</span>
+<span class="hl com">#   )</span>
+
+<span class="hl com"># Make it interactive</span>
+<span class="hl com">#ggplotly(p)</span>
+</pre></div>
+</div></div>
+
+
+
+

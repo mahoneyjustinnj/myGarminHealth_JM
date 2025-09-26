@@ -1,0 +1,363 @@
+print("cat")
+<!--begin.rcode
+cat("\014")
+gc()
+print("cat")
+rm(list=ls())
+setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+end.rcode-->
+
+<!--begin.rcode
+# Install required packages
+#install.packages(c("tidyverse", "jsonlite"))
+
+# Load libraries
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(skimr)
+library(tibble)
+library(htmltools)
+library(tibbletime)
+library(zoo)
+#install.packages("skimr")
+#library(jsonlite)
+
+# Read the CSV
+df_raw <- read_csv("python_scripts/heart.csv")
+df <- df_raw
+names(df)
+dtwp <- df %>% select(calendarDate,heartRateValues)
+de <- df %>% select(-heartRateValues, -heartRateValueDescriptors)
+# names(df)
+# dde <- df %>% select(heartRateValueDescriptors) %>%  as.data.frame() 
+# View(dde)
+
+# Replace 'None' with NULL and parse JSON
+dtwp1 <- dtwp %>%
+  mutate(heartRateValues = map(heartRateValues, ~ {
+    # Replace 'None' with NULL in the JSON string
+    .x <- gsub("None", "null", .x)
+    # Parse the JSON
+    parsed_data <- jsonlite::fromJSON(.x)
+    return(parsed_data)
+  }))
+
+dtwp2 <- dtwp1 %>%
+  unnest(cols = heartRateValues)
+
+data <-  data.frame(dtwp2$calendarDate, dtwp2$heartRateValues[,1], dtwp2$heartRateValues[,2])
+colnames(data) <-  c("date", "seconds", "heartrate")
+#head(data)
+#str(data)
+de1 <- de %>% select(calendarDate,maxHeartRate,minHeartRate,restingHeartRate,lastSevenDaysAvgRestingHeartRate)
+View(de1)
+names(de)
+str(de1)
+end.rcode-->
+
+### clears the Viewer
+<!--begin.rcode
+# Create a blank HTML file
+blank_page <- tempfile(fileext = ".html")
+save_html(tags$html(), file = blank_page)
+
+# Load it into the Viewer
+viewer <- getOption("viewer")
+viewer(blank_page)
+end.rcode-->
+
+# Plot the hr Results
+<!--begin.rcode
+# Convert seconds to POSIXct time
+data$time <- as.POSIXct(data$seconds / 1000, origin = "1970-01-01", tz = "UTC")
+
+# Use plot_ly directly with WebGL
+plot_ly(
+  data = data,
+  x = ~time,
+  y = ~heartrate,
+  type = "scattergl",
+  mode = "markers",
+  marker = list(color = "#E74C3C", size = 3, opacity = 0.6)
+) %>%
+  layout(
+    title = "Heart Rate Over Time",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+str(data)
+end.rcode-->
+
+<!--begin.rcode
+summary(data$heartrate)
+data <- data %>% mutate(heartrate = na.approx(heartrate, na.rm = FALSE))
+data <- data[-1, ]
+end.rcode-->
+
+
+#analyze the time series data
+<!--begin.rcode
+skim(data)
+#preserve
+df <- data
+#colnames(data) <- c("date", "time", "heartrate")
+#install.packages(c("tidyverse", "lubridate", "tibbletime", "anomalize"))
+#data <- as_tibble(data) not needed, causes errors
+# Make it a time-aware tibble
+data_ts <- as_tbl_time(data, index = time)
+
+library(anomalize)
+
+# Apply anomaly detection
+results <- data_ts %>%
+  time_decompose(heartrate, method = "stl", frequency = "auto", trend = "auto") %>%
+  anomalize(remainder, method = "iqr") %>%
+  time_recompose()
+str(results)
+#View(results)
+end.rcode-->
+
+
+<!--begin.rcode
+results$calendarDate <- as.Date(results$date)
+# Perform the left join
+tab <-  results %>%
+  left_join(de1, by = "calendarDate")
+# edit(names(tab))
+end.rcode-->
+
+
+
+
+Plot the anomalies
+<!--begin.rcode
+
+library(plotly)
+
+# Convert anomaly column to logical (TRUE/FALSE)
+results$anomaly_flag <- results$anomaly == "Yes"
+
+# Use WebGL for fast rendering
+plot_ly(
+  data = results,
+  x = ~date,
+  y = ~observed,
+  type = "scattergl",
+  mode = "markers",
+  marker = list(
+    color = ifelse(results$anomaly_flag, "#E74C3C", "#2C3E50"),
+    size = 3,
+    opacity = 0.6
+  )
+) %>%
+  layout(
+    title = "Heart Rate Anomaly Detection",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+end.rcode-->
+
+<!--begin.rcode
+library(plotly)
+library(dplyr)
+
+# Convert anomaly column to logical (TRUE/FALSE)
+tab$anomaly_flag <- tab$anomaly == "Yes"
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = tab,
+  x = ~date,
+  y = ~observed,
+  type = "scattergl",
+  mode = "markers",
+  name = "Observed",
+  marker = list(
+    color = ifelse(tab$anomaly_flag, "#E74C3C", "#2C3E50"),
+    size = 3,
+    opacity = 0.6
+  )
+)
+
+# Group by calendarDate and add horizontal lines for each metric
+daily_lines <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(date),
+    x_end = max(date),
+    maxHR = first(maxHeartRate),
+    minHR = first(minHeartRate),
+    restHR = first(restingHeartRate)
+  )
+
+# Add maxHeartRate lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start,
+    xend = ~x_end,
+    y = ~maxHR,
+    yend = ~maxHR,
+    line = list(color = "#E67E22", width = 2),
+    name = "Max HR",
+    inherit = FALSE
+  )
+
+# Add minHeartRate lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start,
+    xend = ~x_end,
+    y = ~minHR,
+    yend = ~minHR,
+    line = list(color = "#3498DB", width = 2),
+    name = "Min HR",
+    inherit = FALSE
+  )
+
+# Add restingHeartRate lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start,
+    xend = ~x_end,
+    y = ~restHR,
+    yend = ~restHR,
+    line = list(color = "#2ECC71", width = 2),
+    name = "Resting HR",
+    inherit = FALSE
+  )
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Anomaly Detection with Daily Metrics",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+p
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode
+p <- ggplot(mtcars, aes(x = wt, y = mpg)) +
+  geom_point(aes(color = factor(cyl)), size = 3) +
+  labs(title = "Car Weight vs MPG", x = "Weight", y = "Miles per Gallon", color = "Cylinders")
+#print(p)
+ggplotly(p)
+end.rcode-->
+
+
+
+
+
+
+###########################
+# this code not viable since it only uses 10% of the points
+<!--begin.rcode
+
+
+# Convert anomaly column to logical (TRUE/FALSE)
+tab$anomaly_flag <- tab$anomaly == "Yes"
+
+# Define holidays (customize as needed)
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))  # Example: New Year, Canada Day, Christmas
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = tab,
+  x = ~date,
+  y = ~observed,
+  type = "scattergl",
+  mode = "markers",
+  name = "Observed",
+  marker = list(
+    color = ifelse(tab$anomaly_flag, "#E74C3C", "#2C3E50"),
+    size = 3,
+    opacity = 0.6
+  )
+)
+
+# Group by calendarDate
+daily_lines <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(date),
+    x_end = max(date),
+    maxHR = first(maxHeartRate),
+    minHR = first(minHeartRate),
+    restHR = first(restingHeartRate)
+  ) %>%
+  mutate(
+    is_weekend = wday(calendarDate) %in% c(1, 7),  # Sunday = 1, Saturday = 7
+    is_holiday = calendarDate %in% holidays,
+    label_color = ifelse(is_weekend | is_holiday, "#E74C3C", "#2980B9")
+  )
+
+# Add horizontal lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~maxHR, yend = ~maxHR,
+    line = list(color = "#E67E22", width = 2),
+    name = "Max HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~minHR, yend = ~minHR,
+    line = list(color = "#3498DB", width = 2),
+    name = "Min HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~restHR, yend = ~restHR,
+    line = list(color = "#2ECC71", width = 2),
+    name = "Resting HR", inherit = FALSE
+  )
+
+# Add vertical lines and colored date labels
+max_y <- max(tab$observed, na.rm = TRUE)
+
+for (i in seq_len(nrow(daily_lines))) {
+  p <- p %>%
+    add_lines(
+      x = c(daily_lines$x_start[i], daily_lines$x_start[i]),
+      y = c(min(tab$observed), max_y),
+      line = list(color = "rgba(0,0,0,0.2)", dash = "dot"),
+      showlegend = FALSE,
+      inherit = FALSE
+    ) %>%
+    add_annotations(
+      x = daily_lines$x_start[i],
+      y = max_y + 5,
+      text = as.character(daily_lines$calendarDate[i]),
+      showarrow = FALSE,
+      textangle = -90,
+      font = list(size = 10, color = daily_lines$label_color[i])
+    )
+}
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Anomaly Detection with Daily Metrics",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+p
+
+end.rcode-->
+

@@ -1,0 +1,204 @@
+print("cat")
+<!--begin.rcode
+print("cat")
+rm(list=ls())
+setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+end.rcode-->
+
+<!--begin.rcode
+# Install required packages
+#install.packages(c("tidyverse", "jsonlite"))
+
+# Load libraries
+library(tidyverse)
+
+library(dplyr)
+#library(jsonlite)
+
+# Read the CSV
+df_raw <- read_csv("python_scripts/heart.csv")
+df <- df_raw
+names(df)
+dtwp <- df %>% select(calendarDate,heartRateValues)
+de <- df %>% select(-heartRateValues, -heartRateValueDescriptors)
+
+
+# Replace 'None' with NULL and parse JSON
+dtwp1 <- dtwp %>%
+  mutate(heartRateValues = map(heartRateValues, ~ {
+    # Replace 'None' with NULL in the JSON string
+    .x <- gsub("None", "null", .x)
+    # Parse the JSON
+    parsed_data <- jsonlite::fromJSON(.x)
+    return(parsed_data)
+  }))
+# dtw <- dtwp %>%
+#   mutate(heartRateValues = map(heartRateValues, ~ {
+#     # Replace 'None' with NA
+#     .x <- gsub(NONE, NA, .x)
+#     jsonlite::fromJSON(.x)
+#   }))
+# Unnest the heartRateValues column
+dtwp2 <- dtwp1 %>%
+  unnest(cols = heartRateValues)
+
+#head(dtwp2, n=1)
+# str(dtwp2)
+# names(dtwp2)
+#View(dtwp2)
+# data <- dtwp2
+# names(data)
+
+data <-  data.frame(dtwp2$calendarDate, dtwp2$heartRateValues[,1], dtwp2$heartRateValues[,2])
+colnames(data) <-  c("date", "seconds", "heartrate")
+head(data)
+View(data)
+end.rcode-->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--begin.rcode
+# Example tibble
+your_tibble <- tibble(
+  calendarDate = as.Date(c("2025-08-19", "2025-08-20")),
+  heartRateValues = c('[[1755621360000, None], [1755621480000, 72]]', 
+                      '[[1755621600000, 80], [1755621720000, None]]')
+)
+
+# Replace 'None' with NULL and parse JSON
+your_tibble <- your_tibble %>%
+  mutate(heartRateValues = map(heartRateValues, ~ {
+    # Replace 'None' with NULL in the JSON string
+    .x <- gsub("None", "null", .x)
+    # Parse the JSON
+    parsed_data <- jsonlite::fromJSON(.x)
+    return(parsed_data)
+  }))
+
+print(your_tibble)
+
+library(tidyr)
+library(dplyr)
+# Unnest the heartRateValues column
+unnested_tibble <- your_tibble %>%
+  unnest(cols = heartRateValues)
+
+print(unnested_tibble)
+print(names(unnested_tibble))
+
+data1 <-  data.frame(unnested_tibble$calendarDate, unnested_tibble$heartRateValues[,1], unnested_tibble$heartRateValues[,2])
+colnames(data1) <-  c("date", "seconds", "heartrate")
+# data <- unnested_tibble %>%
+#   rename(
+#     date = calendarDate,
+#     seconds = `heartRateValues[,1]`,
+#     heartrate = `[,2]`
+#   ) %>%
+#   as.data.frame()
+print(data)
+end.rcode-->
+
+
+
+
+
+<!--begin.rcode
+
+
+#library(jsonlite)
+
+# Sample tibble
+# dfz <- tibble(
+#   calendarDate = as.Date(c("2025-08-19", "2025-08-20")),
+#   heartRateValues = c(
+#     "[[1755621360000, null], [1755621480000, 72], [1755621600000, 71], [1755621720000, 84]]",
+#     "[[1755662400000, 84], [1755662520000, 86], [1755662640000, 60], [1755662760000, 65]]"
+#   )
+# )
+
+dfz <- dtw
+
+# Clean and parse JSON-like strings
+df_clean <- dfz %>%
+  mutate(
+    heartRateValues = map(heartRateValues, ~ jsonlite::fromJSON(.x))
+  )
+
+# Flatten into long format
+df_flat <- df_clean %>%
+  unnest(heartRateValues) #%>% rename(timestamp = heartRateValues1, heartrate = heartRateValues2)
+summary(df_flat)
+str(df_flat)
+
+dt <-  as.data.frame(df_flat) 
+names(dt)
+summary(dt)
+colnames(dt) <- c("Date",  "Heartrate")
+# View result
+print(head(dt))
+print(dim(dt))
+#View(dt)
+end.rcode-->
+
+
+
+
+
+
+
+
+
+
+
+
+<!--begin.rcode
+
+library(tidyverse)
+#library(jsonlite)
+
+# Sample tibble
+dfz <- tibble(
+  calendarDate = as.Date(c("2025-08-19", "2025-08-20")),
+  heartRateValues = c(
+    "[[1755621360000, null], [1755621480000, 72], [1755621600000, 71], [1755621720000, 84]]",
+    "[[1755662400000, 84], [1755662520000, 86], [1755662640000, 60], [1755662760000, 65]]"
+  )
+)
+
+# Clean and parse JSON-like strings
+df_clean <- dfz %>%
+  mutate(
+    heartRateValues = map(heartRateValues, ~ jsonlite::fromJSON(.x))
+  )
+
+# Flatten into long format
+df_flat <- df_clean %>%
+  unnest(heartRateValues) #%>% rename(timestamp = heartRateValues1, heartrate = heartRateValues2)
+summary(df_flat)
+str(df_flat)
+
+dto <-  as.data.frame(df_flat) 
+names(dto)
+summary(dto)
+colnames(dto) <- c("Date",  "Heartrate")
+# View result
+print(dto)
+print(dim(dto))
+#View(dto)
+end.rcode-->
