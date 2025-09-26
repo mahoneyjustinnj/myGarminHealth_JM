@@ -51,7 +51,7 @@ system("git status")
 system("git add .")
 
 #2nd - i will commit the changes using:
-system("git commit -m 'created html to show heartrates over time for anomalies'  ")
+system("git commit -m 'added the simulated heart rate dataset heart.csv'  ")
 # [main 068ee51] adding latest updates to my health repo
 # 3 files changed, 85 insertions(+), 1 deletion(-)
 # create mode 100644 .gitignore
