@@ -167,7 +167,7 @@ library(dplyr)
 
 # Convert anomaly column to logical (TRUE/FALSE)
 tab$anomaly_flag <- tab$anomaly == "Yes"
-
+#y <- write.csv(tab, file = "heartSIMUL250926.csv")
 # Create base scattergl plot
 p <- plot_ly(
   data = tab,
