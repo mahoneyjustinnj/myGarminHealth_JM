@@ -1,0 +1,997 @@
+print("cat")
+<!--begin.rcode setup, include=FALSE
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+end.rcode-->
+
+
+<!--begin.rcode warning=FALSE
+cat("\014")
+
+gc()
+print("cat")
+rm(list=ls())
+setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+end.rcode-->
+
+
+<!--begin.rcode
+# Install required packages
+#install.packages(c("tidyverse", "jsonlite"))
+
+# Load libraries
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(ggpubr)
+library(skimr)
+library(tibble)
+library(htmltools)
+library(tibbletime)
+library(zoo)
+library(tidyr)
+library(anomalize)
+library(knitr)
+library(gt)
+#install.packages("skimr")
+#library(jsonlite)
+
+# Read the CSV
+df_raw <- read_csv("python_scripts/heart4.csv")
+df <- df_raw
+#edit(names(df))
+
+end.rcode-->
+
+
+create functions
+<!--begin.rcode
+
+show_tb <- function(df, n = 6) {
+  library(gt)
+  
+  df %>%
+    head(n) %>%
+    gt() %>%
+    tab_header(
+      title = paste("Showing First", n, "Rows"),
+      subtitle = "Styled with gt"
+    )
+}
+
+
+fx <- function(...) {
+  arg_exprs <- substitute(list(...))[-1]
+  i <- 1
+
+  while (i <= length(arg_exprs)) {
+    expr <- arg_exprs[[i]]
+    is_comment <- FALSE
+
+    # Skip if it's a comment without a preceding dataframe
+    if (is.character(expr)) {
+      i <- i + 1
+      next
+    }
+
+    df_name <- deparse(expr)
+    comment <- ""
+
+    # Check if next argument is a comment string
+    if (i < length(arg_exprs) && is.character(arg_exprs[[i + 1]])) {
+      comment <- eval(arg_exprs[[i + 1]], envir = .GlobalEnv)
+      i <- i + 1
+    }
+
+    # Try to evaluate the dataframe
+    df_exists <- exists(df_name, envir = .GlobalEnv)
+    if (df_exists) {
+      df <- get(df_name, envir = .GlobalEnv)
+      if (!inherits(df, "data.frame")) {
+        message(df_name, " exists but is not a dataframe. Skipping.")
+        i <- i + 1
+        next
+      }
+      col_list <- paste(names(df), collapse = ", ")
+    } else {
+      col_list <- ""
+      comment <- paste0("object '", df_name, "' not found\n", comment)
+      message(df_name, " is not present in this current environment but it was added to all_names.")
+    }
+
+    # Add or update entry
+    idx <- which(all_names$dataframe == df_name)
+    if (length(idx) == 1) {
+      if (comment != "") {
+        all_names$comment[idx] <<- paste(all_names$comment[idx], comment, sep = "\n")
+      }
+      if (col_list != "") {
+        all_names$columns[idx] <<- col_list
+      }
+    } else {
+      all_names <<- rbind(
+        all_names,
+        data.frame(dataframe = df_name, columns = col_list, comment = comment, stringsAsFactors = FALSE)
+      )
+    }
+
+    i <- i + 1
+  }
+
+  # Reorder: move rows with empty columns to bottom
+  empty_rows <- which(all_names$columns == "")
+  filled_rows <- which(all_names$columns != "")
+  all_names <<- all_names[c(filled_rows, empty_rows), ]
+}
+
+end.rcode-->
+
+create more functions
+<!--begin.rcode
+comp_cols <- function(df_raw, ..., reverse = FALSE) {
+  # Capture exclusions from ... as character strings
+  exclude <- as.character(substitute(list(...)))[-1]
+
+  # Get column names from df_raw directly
+  df_names <- names(df_raw)
+
+  # Filter all_names based on exclude list
+  if (length(exclude) > 0) {
+    all_names_filtered <- all_names[!(all_names[[1]] %in% exclude), ]
+  } else {
+    all_names_filtered <- all_names
+  }
+
+  # Parse and clean all comma-separated column names from column 2
+  ref_names <- unlist(strsplit(paste(all_names_filtered[[2]], collapse = ","), ","))
+  ref_names_clean <- trimws(ref_names)
+
+  if (reverse) {
+    return(ref_names_clean[!(ref_names_clean %in% df_names)])
+  } else {
+    return(df_names[!(df_names %in% ref_names_clean)])
+  }
+}
+end.rcode-->
+
+
+create even more functions...
+<!--begin.rcode
+all_names <- data.frame(
+  dataframe = character(0),
+  columns = character(0),
+  comment = character(0),
+  stringsAsFactors = FALSE
+)
+
+add_comment <- function(df, comment) {
+  df_name <- deparse(substitute(df))
+  idx <- which(all_names$dataframe == df_name)
+  if (length(idx) == 1) {
+    if (all_names$comment[idx] == "") {
+      all_names$comment[idx] <<- comment
+    } else {
+      all_names$comment[idx] <<- paste(all_names$comment[idx], comment, sep = "\n")
+    }
+  }
+}
+
+
+reset_fx <- function() {
+  all_names <<- data.frame(dataframe = character(0), columns = character(0), comment = character(0), stringsAsFactors = FALSE)
+}
+
+df_comms <- function(df) {
+  df_name <- deparse(substitute(df))
+  idx <- which(all_names$dataframe == df_name)
+
+  if (length(idx) == 0 || all_names$comment[idx] == "") {
+    message("There are no comments currently for this dataframe.")
+  } else {
+    cat(all_names$comment[idx])
+  }
+}
+
+curr_df <- function(env = .GlobalEnv) {
+  objs <- ls(envir = env)
+  df_objs <- Filter(function(x) {
+    obj <- get(x, envir = env)
+    inherits(obj, c("data.frame", "tbl_df", "data.table"))
+  }, objs)
+
+  if (length(df_objs) == 0) {
+    message("No data-holding objects found.")
+  } else {
+    print(df_objs)
+  }
+}
+
+misd_df <- function() {
+  # Get current data-holding objects
+  current_dfs <- curr_df()
+  
+  # If curr_df printed a message instead of returning a value
+  if (is.null(current_dfs)) return(invisible(NULL))
+  
+  # Get already tracked dataframes
+  tracked_dfs <- all_names$dataframe
+  
+  # Find untracked ones
+  missing <- setdiff(current_dfs, tracked_dfs)
+  
+  if (length(missing) == 0) {
+    message("All current dataframes are already tracked in all_names.")
+  } else {
+    cat("Untracked dataframes:\n")
+    print(missing)
+  }
+}
+
+end.rcode-->
+
+
+<!--begin.rcode
+fx(df, "df is same as df_raw, just re-branded")
+#fx(df3)
+#print(all_names)
+View(all_names)
+#reset_fx()
+#print(all_names)  # now empty
+end.rcode-->
+
+
+
+<!--begin.rcode
+dtwp <- df %>% select(calendarDate,heartRateValues)
+fx(dtwp, "takes these 2 columns from df")
+de <- df %>% select(-heartRateValues, -heartRateValueDescriptors)
+fx(de, "de takes everything from df except these 2 columns - heartRateValues, -heartRateValueDescriptors")
+
+# Replace 'None' with NULL and parse JSON; dtwp got heartRateVlaues
+dtwp1 <- dtwp %>%
+  mutate(heartRateValues = map(heartRateValues, ~ {
+    # Replace 'None' with NULL in the JSON string
+    .x <- gsub("None", "null", .x)
+    # Parse the JSON
+    parsed_data <- jsonlite::fromJSON(.x)
+    return(parsed_data)
+  }))
+fx(dtwp1, "dtwp1 take dtwp replaces 'none' with NULL and parses json ")
+
+dtwp2 <- dtwp1 %>%
+  unnest(cols = heartRateValues)
+fx(dtwp2, "dtwp2 unnests the column heartRateValues in dtwp1 into milliseconds and heart rate")
+
+data <-  data.frame(dtwp2$calendarDate, dtwp2$heartRateValues[,1], dtwp2$heartRateValues[,2])
+colnames(data) <-  c("date", "seconds", "heartrate") ; head(data)
+fx(data, "data renames the columns in dtwp2 and also converts it to a datframe")
+#head(data)
+#str(data)
+
+de1 <- de %>% select(calendarDate,maxHeartRate,minHeartRate,restingHeartRate,lastSevenDaysAvgRestingHeartRate)
+fx(de1, "de1 takes only these columns from de - they specifically relate to the beats per minutes and heartrate")
+#View(de1)
+names(de1)
+str(de1)
+fx( de, de1, dtwp, dtwp1, dtwp2,data)
+add_comment(de, "same as df except heartRateValues and heartRateValueDescriptors")
+add_comment(de, "more stuff...")
+end.rcode-->
+
+
+<!--begin.rcode
+cat(all_names$comment[which(all_names$dataframe == "de")])
+df_comms(de1)  # prints comments for de1
+df_comms(de)   # prints message if no comments
+df_comms(data)
+curr_df()
+misd_df()
+end.rcode-->
+
+test
+<!--begin.rcode
+#fx(de, "de takes everything from df except these 2 columns - heartRateValues, -heartRateValueDescriptors")
+fx(data, "data renames the columns in dtwp2 and also converts it to a datframe")
+fx(de, de1, dtwp, dtwp1, dtwp2, data)
+fx(de, de1, dtwp, dtwp1, dtwp2, data, "this is a test")
+fx(bb, "this dataframe is not present")
+df_comms(bb)
+end.rcode-->
+
+
+<!--begin.rcode
+#dg <- de %>% select(-(names(de1)))
+dg <- de %>% select(-setdiff(names(de1), "calendarDate"))
+fx(dg, "dg takes all the columns that are in de with the exception on those that are in de1, excluding calendarDate")
+#edit(names(dg))
+dg1 <- dg %>% select(c("calendarDate", "summaryDate", "userProfilePK", "startTimestampGMT", "endTimestampGMT", "startTimestampLocal", "endTimestampLocal", "userProfilePk", "hrvSummary", "hrvReadings"))
+fx(dg1, "dg1 takes this subset of colummns from dg")
+dg2 <- dg1 %>% select(c("calendarDate","hrvSummary"))
+fx(dg2, "dg2 takes these 2 colummns from dg1")
+dg3 <- dg1 %>% select(c("calendarDate", "hrvReadings"))
+fx(dg3, "dg3 takes these 2 colummns from dg1")
+#View(dg2)
+end.rcode-->
+
+<!--begin.rcode
+# Replace 'None' with NULL and parse JSON; dtwp got heartRateVlaues
+print(dg2[1, ])
+names(dg2)
+colnames(dg2) <- c("CalendarDate","hrvSummary" )
+dg2_proc <- dg2 %>%
+  mutate(hrvSummary = map(hrvSummary, ~ {
+    .x <- gsub("None", "null", .x)       # Replace Python None with JSON null
+    .x <- gsub("'", "\"", .x)            # Replace single quotes with double quotes
+    jsonlite::fromJSON(.x)                         # Parse JSON into named list
+  })) %>%
+  unnest_longer(hrvSummary, values_to = "value", indices_to = "key")
+head(dg2_proc, n=1)
+fx(dg2_proc, "dg2_proc takes dg2 and none for null, replaces single with double quotes and parses json")
+
+dg2_flat <- dg2_proc %>%
+  pivot_wider(
+    names_from = key,
+    values_from = value
+  )
+head(dg2_flat, n=1)
+fx(dg2_flat,"dg2_flat column flattens dg2_proc - Converting JSON-like strings into tidy key-value pairs in separate columns")
+#View(dg2_flat)
+# head(dg2_flat, n=1)
+# str(dg2_flat)
+end.rcode-->
+
+
+<!--begin.rcode
+head(dg3, n=1)
+dg3_flat <- dg3 %>%
+  mutate(hrvReadings = map(hrvReadings, ~ {
+    .x <- gsub("None", "null", .x)
+    .x <- gsub("'", "\"", .x)
+    jsonlite::fromJSON(.x)
+  })) %>%
+  { purrr::map2_dfr(.$calendarDate, .$hrvReadings, ~ dplyr::mutate(as.data.frame(.y), calendarDate = .x)) }
+head(dg3_flat, n=1)
+
+fx(dg3_flat, "dg3_flat extracts these columns from the 'list of dictionaries' column in dg3")
+dim(dg3_flat)
+head(dg3_flat)
+misd_df()
+end.rcode-->
+
+plot the HRV
+<!--begin.rcode
+library(plotly)
+library(dplyr)
+library(lubridate)
+
+# Prepare data
+daty <- dg3_flat
+fx(daty, "daty is identical to dg3_flat but used in a plot of HRV by time")
+daty$readingTimeGMT <- as.POSIXct(daty$readingTimeGMT, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+daty$readingTimeLocal <- with_tz(daty$readingTimeGMT, tzone = "America/Toronto")
+
+# Define holidays
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = daty,
+  x = ~readingTimeLocal,
+  y = ~hrvValue,
+  type = "scattergl",
+  mode = "markers",
+  name = "HRV",
+  marker = list(color = "#E74C3C", size = 3, opacity = 0.6)
+)
+
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))
+# Group by calendarDate to define vertical lines and labels
+daily_lines <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(readingTimeLocal),
+    x_end = max(readingTimeLocal),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    is_weekend = wday(calendarDate) %in% c(1, 7),
+    is_holiday = calendarDate %in% holidays,
+    label_color = ifelse(is_weekend | is_holiday, "#E74C3C", "#2980B9")
+  )
+fx(daily_lines, "daily_lines is a dataframe used in a plot of HRV to show weekends and holidays")
+# Add vertical lines and date labels
+max_y <- max(daty$hrvValue, na.rm = TRUE)
+
+for (i in seq_len(nrow(daily_lines))) {
+  p <- p %>%
+    add_lines(
+      x = c(daily_lines$x_start[i], daily_lines$x_start[i]),
+      y = c(min(daty$hrvValue), max_y),
+      line = list(color = "rgba(0,0,0,0.2)", dash = "dot"),
+      showlegend = FALSE,
+      inherit = FALSE
+    ) %>%
+    add_annotations(
+      x = daily_lines$x_start[i],
+      y = max_y + 5,
+      text = as.character(daily_lines$calendarDate[i]),
+      showarrow = FALSE,
+      textangle = -90,
+      font = list(size = 10, color = daily_lines$label_color[i])
+    )
+}
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Variability Over Time (HRV)",
+    xaxis = list(title = "Time (EST)"),
+    yaxis = list(title = "Heart Rate Variability (milliseconds)")
+  )
+
+p
+misd_df()
+end.rcode-->
+
+
+table of time ranges
+<!--begin.rcode
+# Create time range summary
+time_summary <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    earliest = format(min(readingTimeLocal, na.rm = TRUE), "%H:%M:%S"),
+    latest   = format(max(readingTimeLocal, na.rm = TRUE), "%H:%M:%S"),
+    time_range = paste(earliest, "-", latest),
+    .groups = "drop"
+  ) %>%
+  select(calendarDate, time_range)
+
+# View result
+print(time_summary)
+fx(time_summary, "time_summary is created from daty to find the earliest and latest clock times for each day of the month of the dataset")
+misd_df()
+end.rcode-->
+
+
+
+
+calculate statistics Kruskall-Wallis
+### Heart rate variability (HRV) was analyzed across 43 days, from August 20 to September 30. A Kruskal-Wallis test was used to compare HRV distributions between days, assessing whether any day showed a statistically different pattern. The test identified August 27 as significantly different from the others. In the box plot, August 27 is highlighted in red, while all other days are shown in blue, indicating a distinct physiological deviation on that date
+
+<!--begin.rcode
+# Group by date and compute summary stats
+stats <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    Min = min(hrvValue, na.rm = TRUE),
+    Q1 = quantile(hrvValue, 0.25, na.rm = TRUE),
+    Median = median(hrvValue, na.rm = TRUE),
+    Q3 = quantile(hrvValue, 0.75, na.rm = TRUE),
+    Max = max(hrvValue, na.rm = TRUE),
+    IQR = IQR(hrvValue, na.rm = TRUE),
+    .groups = "drop"
+  )
+fx(stats, "stats created for Dunn's & Kruskall test and plots to compare HRV")
+# Kruskal-Wallis test to detect significant difference
+kruskal <- kruskal.test(hrvValue ~ calendarDate, data = daty)
+
+# Identify the day with the highest median (as a proxy for anomaly)
+anomaly_day <- stats %>%
+  filter(Median == max(Median)) %>%
+  pull(calendarDate)
+
+# Add color flag
+daty <- daty %>%
+  mutate(colorFlag = ifelse(calendarDate == anomaly_day, "Anomaly", "Normal"))
+
+# Plot using plotly
+p <- plot_ly(
+  data = daty,
+  x = ~calendarDate,
+  y = ~hrvValue,
+  type = "box",
+  color = ~colorFlag,
+  colors = c("Normal" = "#3498DB", "Anomaly" = "#E74C3C"),
+  boxpoints = "all",
+  jitter = 0.3,
+  pointpos = 0
+) %>%
+  layout(
+    title = "HRV Box Plot by Day with Anomaly Highlighted",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "HRV (ms)")
+  )
+
+print(stats)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Anomalous day identified:", anomaly_day, "\n")
+misd_df()
+end.rcode-->
+
+statistics - Dunn's test
+The Dunn test is a post-hoc analysis used after a Kruskal-Wallis test to pinpoint which specific groups differ. In your case, it compares heart rate variability (HRV) across individual days. If all days are marked pink, it means the Dunn test found statistically significant differences in HRV between nearly every pair of days. This suggests that HRV fluctuated meaningfully from day to day, rather than following a stable or consistent pattern.
+<!--begin.rcode
+#install.packages("FSA")
+library(FSA)
+results <- dunnTest(hrvValue ~ calendarDate, data = daty, method = "bh")
+
+#print(results)
+library(dplyr)
+library(plotly)
+library(FSA)
+library(RColorBrewer)
+
+# Summary stats
+# stats <- daty %>%
+#   group_by(calendarDate) %>%
+#   summarise(
+#     Min = min(hrvValue, na.rm = TRUE),
+#     Q1 = quantile(hrvValue, 0.25, na.rm = TRUE),
+#     Median = median(hrvValue, na.rm = TRUE),
+#     Q3 = quantile(hrvValue, 0.75, na.rm = TRUE),
+#     Max = max(hrvValue, na.rm = TRUE),
+#     IQR = IQR(hrvValue, na.rm = TRUE),
+#     .groups = "drop"
+#   )
+
+# Kruskal-Wallis test
+kruskal <- kruskal.test(hrvValue ~ calendarDate, data = daty)
+
+# Dunn's test for pairwise differences
+dunn <- dunnTest(hrvValue ~ calendarDate, data = daty, method = "bh")
+dunn_results <- dunn$res
+head(kable(dunn_results))
+fx(dunn_results, "dunn_results is a table of stats results of comparing each HRV day against all others")
+# Extract significantly different days
+sig_days <- unique(c(dunn_results$Comparison[dunn_results$P.adj < 0.05]))
+sig_days <- unique(unlist(strsplit(sig_days, " - ")))  # split pairs into individual days
+
+# Assign color flags
+daty <- daty %>%
+  mutate(colorFlag = ifelse(calendarDate %in% sig_days, "Significant", "Normal"))
+
+# Use ColorBrewer palette
+colors <- c("Normal" = "#1f78b4", "Significant" = "#e31a1c")  # blue and red
+
+p <- plot_ly(
+  data = daty,
+  x = ~calendarDate,
+  y = ~hrvValue,
+  type = "box",
+  color = ~colorFlag,
+  colors = colors,
+  boxpoints = "all",
+  jitter = 0.25,
+  pointpos = 0,
+  marker = list(size = 2.5, opacity = 0.6)
+) %>%
+  layout(
+    title = "HRV Box Plot by Day with Statistically Different Days Highlighted",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "HRV (ms)")
+  )
+
+print(stats)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Statistically different days identified:\n")
+print(sig_days)
+
+sig_days <- unique(unlist(strsplit(
+  dunn_results$Comparison[dunn_results$P.adj < 0.05], " - "
+)))
+
+table(unlist(strsplit(dunn_results$Comparison[dunn_results$P.adj < 0.05], " - ")))
+end.rcode-->
+
+#clear the Viewer
+<!--begin.rcode
+blank_page <- tempfile(fileext = ".html")
+htmltools::save_html(htmltools::tags$html(htmltools::tags$body("Viewer cleared")), file = blank_page)
+viewer <- getOption("viewer")
+if (!is.null(viewer)) viewer(blank_page)
+misd_df()
+end.rcode-->
+
+
+
+<!--begin.rcode
+# Convert seconds to POSIXct time
+data$time <- as.POSIXct(data$seconds / 1000, origin = "1970-01-01", tz = "UTC")
+# Convert UTC to Eastern Time (automatically handles daylight saving)
+data$time <- with_tz(data$time, tzone = "America/Toronto")
+summary(data$heartrate)
+data <- data %>% mutate(heartrate = na.approx(heartrate, na.rm = FALSE))
+#data <- data[-1, ]
+misd_df()
+end.rcode-->
+
+
+#analyze the time series data
+<!--begin.rcode
+skim(data)
+#preserve
+str(data)
+# Make it a time-aware tibble
+data_ts <- as_tbl_time(data, index = time)
+fx(data_ts, "data_ts is a tibble version of data which contain bpm values; time ordered as an index")
+# Apply anomaly detection
+results <- data_ts %>%
+  time_decompose(heartrate, method = "stl", frequency = "auto", trend = "auto") %>%
+  anomalize(remainder, method = "iqr") %>%
+  time_recompose()
+fx(results, "results in a tbl_time that found anomalies in data_ts time series data")
+str(results)
+misd_df()
+end.rcode-->
+
+
+<!--begin.rcode
+results$calendarDate <- as.Date(results$date)
+# Perform the left join
+tab <-  results %>%
+  left_join(de1, by = "calendarDate")
+# edit(names(tab))
+fx(tab, "tab results from join of results/anomalies and de1 which is heartrate stats Max Min etc")
+misd_df()
+end.rcode-->
+
+<!--begin.rcode
+show_tb(tab, n=12)
+end.rcode-->
+
+###########################
+# this code shows the dates at the top and shows weekends in red for the bpm by date
+<!--begin.rcode
+names(tab)
+# Convert anomaly column to logical (TRUE/FALSE)
+tab$anomaly_flag <- tab$anomaly == "Yes"
+
+# Define holidays (customize as needed)
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))  # Example: New Year, Canada Day, Christmas
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = tab,
+  x = ~date,
+  y = ~observed,
+  type = "scattergl",
+  mode = "markers",
+  name = "Observed",
+  marker = list(
+    color = ifelse(tab$anomaly_flag, "#E74C3C", "#2C3E50"),
+    size = 3,
+    opacity = 0.6
+  )
+)
+
+# Group by calendarDate
+daily_lines <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(date),
+    x_end = max(date),
+    maxHR = first(maxHeartRate),
+    minHR = first(minHeartRate),
+    restHR = first(restingHeartRate)
+  ) %>%
+  mutate(
+    is_weekend = wday(calendarDate) %in% c(1, 7),  # Sunday = 1, Saturday = 7
+    is_holiday = calendarDate %in% holidays,
+    label_color = ifelse(is_weekend | is_holiday, "#E74C3C", "#2980B9")
+  )
+
+# Add horizontal lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~maxHR, yend = ~maxHR,
+    line = list(color = "#E67E22", width = 2),
+    name = "Max HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~minHR, yend = ~minHR,
+    line = list(color = "#3498DB", width = 2),
+    name = "Min HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~restHR, yend = ~restHR,
+    line = list(color = "#2ECC71", width = 2),
+    name = "Resting HR", inherit = FALSE
+  )
+
+# Add vertical lines and colored date labels
+max_y <- max(tab$observed, na.rm = TRUE)
+
+for (i in seq_len(nrow(daily_lines))) {
+  p <- p %>%
+    add_lines(
+      x = c(daily_lines$x_start[i], daily_lines$x_start[i]),
+      y = c(min(tab$observed), max_y),
+      line = list(color = "rgba(0,0,0,0.2)", dash = "dot"),
+      showlegend = FALSE,
+      inherit = FALSE
+    ) %>%
+    add_annotations(
+      x = daily_lines$x_start[i],
+      y = max_y + 5,
+      text = as.character(daily_lines$calendarDate[i]),
+      showarrow = FALSE,
+      textangle = -90,
+      font = list(size = 10, color = daily_lines$label_color[i])
+    )
+}
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Anomaly Detection with Daily Metrics",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+#p
+
+end.rcode-->
+
+
+kruskall for heart rate (bpm)
+Heart rate (bpm) was analyzed across 43 days, from August 20 to September 30. A Kruskal-Wallis test was used to compare heart distributions between days, assessing whether any day showed a statistically different pattern. The test identified Sept 24 as significantly different from the others. In the box plot, Sept 24 is highlighted in red, while all other days are shown in blue, indicating a distinct physiological deviation on that date. Also, incidentally the resting heart rate was higher than that of all other days.
+<!--begin.rcode
+# Group by calendarDate and compute summary stats
+statistics <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    Min = min(observed, na.rm = TRUE),
+    Q1 = quantile(observed, 0.25, na.rm = TRUE),
+    Median = median(observed, na.rm = TRUE),
+    Q3 = quantile(observed, 0.75, na.rm = TRUE),
+    Max = max(observed, na.rm = TRUE),
+    IQR = IQR(observed, na.rm = TRUE),
+    .groups = "drop"
+  )
+fx(statistics, "Shows the statistics for the dataframe tab to perform kruskal on bpm data")
+# Kruskal-Wallis test across calendarDate
+kruskal <- kruskal.test(observed ~ calendarDate, data = tab)
+
+# Identify anomalous day with highest median
+anomaly_day <- statistics %>%
+  filter(Median == max(Median)) %>%
+  pull(calendarDate)
+
+# Add color flag to tab
+tab <- tab %>%
+  mutate(colorFlag = ifelse(calendarDate == anomaly_day, "Anomaly", "Normal"))
+
+
+# Box plot with anomaly highlight
+p <- plot_ly(
+  data = tab,
+  x = ~calendarDate,
+  y = ~observed,
+  type = "box",
+  color = ~colorFlag,
+  colors = c("Normal" = "#3498DB", "Anomaly" = "#E74C3C"),
+  boxpoints = "all",
+  jitter = 0.3,
+  pointpos = 0
+) %>%
+  layout(
+    title = "Heart Rate Box Plot by Day with Anomaly Highlighted (Kruskal-Wallis)",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+print(statistics)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Anomalous day identified:", anomaly_day, "\n")
+# remaining <- misd_df()
+# str(remaining)
+misd_df()
+end.rcode-->
+
+Gives me the values/columns i still want to do something with that are in df_raw
+<!--begin.rcode
+# comp_cols(df_raw, reverse=TRUE)
+# comp_cols(df_raw)
+# comp_cols(df_raw, df,de)
+# comp_cols(df_raw, df, de,  reverse=TRUE)
+# comp_cols(df_raw, df, de,dg,  reverse=TRUE)
+comp_cols(df_raw, df, de,dg)
+end.rcode-->
+
+build sleep & respiration datasets
+<!--begin.rcode
+remaini <- comp_cols(df_raw, df, de,dg) ; remaini
+#str(remaini)
+# Assuming remaini is a character vector of column names
+d_col_remaining <- de %>% select(any_of(c("calendarDate",remaini)))
+fx(d_col_remaining, "d_col_remaining contains all the remaining columns that have not been used thus far; 'calendarDate' is also included")
+#names(d_col_remaining)
+respir_general <- c("lowestRespirationValue","highestRespirationValue","avgWakingRespirationValue","avgSleepRespirationValue","avgTomorrowSleepRespirationValue", "respirationValueDescriptorsDTOList","respirationValuesArray",  "respirationAveragesValueDescriptorDTOList", "respirationAveragesValuesArray","respirationVersion")  
+respir_stat <- c("lowestRespirationValue","highestRespirationValue","avgWakingRespirationValue","avgSleepRespirationValue","avgTomorrowSleepRespirationValue")
+d_respir_General <- d_col_remaining %>% select(any_of(c("calendarDate",respir_general)))
+
+#View(d_respir_General)
+setdiff( names(d_col_remaining), names(d_respir_General))
+fx(d_respir_General, "d_respir_General contains General columns related to respiration")
+d_respir_stats <- d_col_remaining %>% select(any_of(c("calendarDate",respir_stat)))
+setdiff( names(d_respir_General), names(d_respir_stats))
+fx(d_respir_stats, "d_respir_stats is the respiration statistical values per day")
+
+#View(d_respir_stats)
+
+d_respir_values <- d_respir_General %>% select(any_of(c("calendarDate","respirationValuesArray") ) )
+fx(d_respir_values, "d_respir_values is the uncleaned respiration values")
+
+#View(d_respir_values)
+
+#remaini <- comp_cols(df_raw, df, de,dg)
+sleep_general <- c("dailySleepDTO","sleepMovement","remSleepData","sleepLevels","sleepRestlessMoments","restlessMomentsCount", "sleepHeartRate")
+d_sleep_general <- d_col_remaining %>% select(any_of(c("calendarDate", "sleepStartTimestampGMT", "sleepEndTimestampGMT", "tomorrowSleepStartTimestampGMT", "tomorrowSleepEndTimestampGMT",sleep_general)))
+fx(d_sleep_general, "d_sleep_general is the general sleep data")
+
+setdiff(names(d_col_remaining), union(names(d_respir_General), names(d_sleep_general)))
+
+#View(d_sleep_general)
+unique(d_col_remaining$hrvStatus)
+table(d_col_remaining$hrvStatus)
+unique(d_col_remaining$hrvStatus)
+str(d_col_remaining$hrvData)
+
+unique(d_respir_General$respirationVersion) #only 200
+end.rcode-->
+
+decipher the sleep DTO values
+<!--begin.rcode
+d_sleep_DTO <- d_sleep_general %>% select(any_of(c("calendarDate", "dailySleepDTO")))
+fx(d_sleep_DTO, "d_sleep_DTO got these columns from d_sleep_general")
+#View(d_sleep_DTO)
+
+d_sleep_DTO1 <- d_sleep_DTO %>%
+  mutate(dailySleepDTO = map(dailySleepDTO, ~ {
+    .x <- gsub("None", "null", .x)         # Replace Python None with JSON null
+    .x <- gsub("True", "true", .x)         # Replace Python True with JSON true
+    .x <- gsub("False", "false", .x)       # Replace Python False with JSON false
+    .x <- gsub("'", "\"", .x)              # Replace single quotes with double quotes
+    jsonlite::fromJSON(.x)                           # Parse JSON
+  })) %>%
+  unnest_longer(dailySleepDTO, values_to = "value", indices_to = "key")
+
+fx(d_sleep_DTO1, "d_sleep_DTO1 from d_sleep_DTO Nones to null, True to true (and false) & single for double quotes")
+str(d_sleep_DTO1)
+#View(d_sleep_DTO1)
+#View(d_sleep_DTO1)
+colnames(d_sleep_DTO1) <-  c("CalendarDate", "value", "key" )
+d_sleep_DTO2 <- d_sleep_DTO1 %>%
+  pivot_wider(
+    names_from = key,
+    values_from = value
+  )
+fx(d_sleep_DTO2, "d_sleep_DTO2 is the flat version of d_sleep_DTO1 from 3 cols to 44cols")
+head(d_sleep_DTO2, n=1)
+#View(d_sleep_DTO2)
+d_sleep_DTO2$sleepScores[1]
+d_sleep_DTO2$sleepScorePersonalizedInsight[1]
+d_sleep_DTO2$sleepNeed[3]
+unique(d_sleep_DTO2$sleepScorePersonalizedInsight)
+length(unique(d_sleep_DTO2$sleepScorePersonalizedInsight))
+unique(d_sleep_DTO2$sleepVersion) #0nly 2
+unique(d_sleep_DTO2$sleepScoreFeedback)
+length(unique(d_sleep_DTO2$sleepScoreFeedback))
+names(d_sleep_DTO2)
+sleep_filt <- c("CalendarDate", "calendarDate", "sleepTimeSeconds", "sleepStartTimestampGMT","sleepEndTimestampGMT", "unmeasurableSleepSeconds", "deepSleepSeconds", "lightSleepSeconds", "remSleepSeconds", "awakeSleepSeconds", "averageSpO2Value", "lowestSpO2Value", "highestSpO2Value", "averageSpO2HRSleep", "averageRespirationValue", "lowestRespirationValue", "highestRespirationValue", "awakeCount", "avgSleepStress")
+sleep_qual <- d_sleep_DTO2 %>% select(any_of(c(sleep_filt))) 
+fx(sleep_qual, "sleep_qual is a tibble with these columns to be converted to a dataframe")
+sleep_qual1 <- sleep_qual %>% unnest(cols = everything())
+fx(sleep_qual1, "sleep_qual1 is a dataframe that was converted from sleep_qual, a tibble")
+#View(sleep_qual1)
+str(head(sleep_qual1, n=1))
+end.rcode-->
+
+<!--begin.rcode
+glimpse(d_sleep_general)
+d_sleepLevels <- d_sleep_general %>% select(any_of(c("calendarDate", "sleepLevels")))
+fx(d_sleepLevels, "d_sleepLevels extracts calendarDate list from d_sleep_general")
+safe_parse_json <- function(x) {
+  if (is.null(x) || is.na(x) || x == "") return(NULL)
+  x <- gsub("None", "null", x)
+  x <- gsub("True", "true", x)
+  x <- gsub("False", "false", x)
+  x <- gsub("'", "\"", x)
+  tryCatch(jsonlite::fromJSON(x), error = function(e) NULL)
+}
+
+d_sleepLevels1 <- d_sleepLevels %>%
+  mutate(sleepLevels = map(sleepLevels, safe_parse_json)) %>%
+  unnest_longer(sleepLevels, values_to = "value", indices_to = "key")
+fx(d_sleepLevels1, "d_sleepLevels1 unnests sleepLevels list from d_sleepLevels")
+#View(d_sleepLevels1)
+str(d_sleepLevels1)
+
+data_sleep <- d_sleepLevels1 %>%
+  unnest(cols = value) %>%
+  as.data.frame()
+
+data_sleep <- data_sleep %>%
+  mutate(
+    startTimeGMT   = as.POSIXct(startGMT, format = "%Y-%m-%dT%H:%M:%OS", tz = "GMT"),
+    endTimeGMT     = as.POSIXct(endGMT,   format = "%Y-%m-%dT%H:%M:%OS", tz = "GMT"),
+    startTimeLocal = with_tz(startTimeGMT, tzone = "America/Toronto"),
+    endTimeLocal   = with_tz(endTimeGMT,   tzone = "America/Toronto")
+  )
+
+fx(data_sleep, "data_sleep unnests columns from d_sleepLevels1 and converts to proper time format")
+str(data_sleep)
+View(data_sleep)
+end.rcode-->
+
+
+
+<!--begin.rcode
+sleep_qual1$sleepStartTimestampGMT <- sleep_qual1$sleepStartTimestampGMT/1000
+sleep_qual1$sleepStartTimestampGMT <- as.POSIXct(sleep_qual1$sleepStartTimestampGMT, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+sleep_qual1$sleepStartTimestampGMT <- with_tz(sleep_qual1$sleepStartTimestampGMT, tzone = "America/Toronto")
+sleep_qual1$sleepEndTimestampGMT  <- sleep_qual1$sleepEndTimestampGMT/1000
+sleep_qual1$sleepEndTimestampGMT  <- as.POSIXct(sleep_qual1$sleepEndTimestampGMT, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+sleep_qual1$sleepEndTimestampGMT  <- with_tz(sleep_qual1$sleepEndTimestampGMT , tzone = "America/Toronto")
+end.rcode-->
+
+
+<!--begin.rcode
+show_tb(daty, n=122) #hrv value - multiple by day calendarDate
+dim(daty) #[1] 3496    5
+show_tb(data_ts, n=122) # heartrate value - multiple by day; only time, no calendarDate
+dim(data_ts) #[1] 30164     4
+show_tb(de1, n=122) #heartrate stats - 1 per day ; calendarDate
+dim(de1) #[1] 44  5
+show_tb(d_respir_stats, n=122) #respiration stats - 1 per day; ; calendarDate
+dim(d_respir_stats) #[1] 44  6
+show_tb(sleep_qual1, n=122) #sleep stats - 1 per day ; calendarDate
+dim(sleep_qual1) #[1] 44 19
+show_tb(data_sleep, n=122) #shows REM (and light, deep & awake)sleep intervals for each day
+dim(data_sleep) #[1] 754   9
+end.rcode-->
+
+<!--begin.rcode
+show_tb(all_names, n=122)
+misd_df()
+end.rcode-->
+
+
+<!--begin.rcode
+str(sleep_qual1)
+skim(sleep_qual1)
+end.rcode-->
+
+
+
+#diagnostics below...
+<!--begin.rcode
+unique(unlist(strsplit(paste(all_names[[2]], collapse = ","), ",")))
+parsed_names <- unlist(strsplit(paste(all_names[[2]], collapse = ","), ","))
+parsed_names_clean <- trimws(parsed_names)
+
+# Compare raw vs cleaned
+head(parsed_names, 10)
+head(parsed_names_clean, 10)
+end.rcode-->
+
+
+<!--begin.rcode
+# setdiff(ref_unique, names(df_raw))
+# setdiff(names(df_raw), ref_unique)
+
+
+end.rcode-->
+
+

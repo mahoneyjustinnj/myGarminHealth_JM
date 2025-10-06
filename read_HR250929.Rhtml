@@ -1,0 +1,568 @@
+print("cat")
+<!--begin.rcode setup, include=FALSE
+knitr::opts_chunk$set(
+  warning = FALSE,
+  message = FALSE
+)
+end.rcode-->
+
+
+<!--begin.rcode warning=FALSE
+cat("\014")
+
+gc()
+print("cat")
+rm(list=ls())
+setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+end.rcode-->
+
+
+<!--begin.rcode
+# Install required packages
+#install.packages(c("tidyverse", "jsonlite"))
+
+# Load libraries
+library(tidyverse)
+library(lubridate)
+library(dplyr)
+library(plotly)
+library(ggplot2)
+library(ggpubr)
+library(skimr)
+library(tibble)
+library(htmltools)
+library(tibbletime)
+library(zoo)
+library(tidyr)
+#install.packages("skimr")
+#library(jsonlite)
+
+# Read the CSV
+df_raw <- read_csv("python_scripts/heart2.csv")
+df <- df_raw
+names(df)
+
+end.rcode-->
+
+<!--begin.rcode
+
+dtwp <- df %>% select(calendarDate,heartRateValues)
+de <- df %>% select(-heartRateValues, -heartRateValueDescriptors)
+head(dtwp)
+# Replace 'None' with NULL and parse JSON; dtwp got heartRateVlaues
+dtwp1 <- dtwp %>%
+  mutate(heartRateValues = map(heartRateValues, ~ {
+    # Replace 'None' with NULL in the JSON string
+    .x <- gsub("None", "null", .x)
+    # Parse the JSON
+    parsed_data <- jsonlite::fromJSON(.x)
+    return(parsed_data)
+  }))
+
+dtwp2 <- dtwp1 %>%
+  unnest(cols = heartRateValues)
+
+data <-  data.frame(dtwp2$calendarDate, dtwp2$heartRateValues[,1], dtwp2$heartRateValues[,2])
+colnames(data) <-  c("date", "seconds", "heartrate") ; head(data)
+#head(data)
+#str(data)
+de1 <- de %>% select(calendarDate,maxHeartRate,minHeartRate,restingHeartRate,lastSevenDaysAvgRestingHeartRate)
+#View(de1)
+names(de1)
+str(de1)
+end.rcode-->
+
+
+<!--begin.rcode
+#dg <- de %>% select(-(names(de1)))
+dg <- de %>% select(-setdiff(names(de1), "calendarDate"))
+#edit(names(dg))
+dg1 <- dg %>% select(c("calendarDate", "summaryDate", "userProfilePK", "startTimestampGMT", "endTimestampGMT", "startTimestampLocal", "endTimestampLocal", "userProfilePk", "hrvSummary", "hrvReadings"))
+dg2 <- dg1 %>% select(c("calendarDate","hrvSummary"))
+dg3 <- dg1 %>% select(c("calendarDate", "hrvReadings"))
+#View(dg2)
+end.rcode-->
+
+<!--begin.rcode
+# Replace 'None' with NULL and parse JSON; dtwp got heartRateVlaues
+print(dg2[1, ])
+names(dg2)
+colnames(dg2) <- c("CalendarDate","hrvSummary" )
+dg2_proc <- dg2 %>%
+  mutate(hrvSummary = map(hrvSummary, ~ {
+    .x <- gsub("None", "null", .x)       # Replace Python None with JSON null
+    .x <- gsub("'", "\"", .x)            # Replace single quotes with double quotes
+    jsonlite::fromJSON(.x)                         # Parse JSON into named list
+  })) %>%
+  unnest_longer(hrvSummary, values_to = "value", indices_to = "key")
+
+dg2_flat <- dg2_proc %>%
+  pivot_wider(
+    names_from = key,
+    values_from = value
+  )
+
+#View(dg2_flat)
+head(dg2_flat, n=4)
+str(dg2_flat)
+end.rcode-->
+
+
+<!--begin.rcode
+head(dg3, n=2)
+dg3_flat <- dg3 %>%
+  mutate(hrvReadings = map(hrvReadings, ~ {
+    .x <- gsub("None", "null", .x)
+    .x <- gsub("'", "\"", .x)
+    jsonlite::fromJSON(.x)
+  })) %>%
+  { purrr::map2_dfr(.$calendarDate, .$hrvReadings, ~ dplyr::mutate(as.data.frame(.y), calendarDate = .x)) }
+
+dim(dg3_flat)
+head(dg3_flat)
+#View(dg3_flat)
+# # Step 3: Rename and reorder columns if needed
+# dg3_flat <- dg3_flat %>%
+#   select(calendarDate, readingTimeGMT, readingTimeLocal, hrvValue)
+
+end.rcode-->
+
+plot the HRV
+<!--begin.rcode
+library(plotly)
+library(dplyr)
+library(lubridate)
+
+# Prepare data
+daty <- dg3_flat
+daty$readingTimeGMT <- as.POSIXct(daty$readingTimeGMT, format = "%Y-%m-%dT%H:%M:%OS", tz = "UTC")
+daty$readingTimeLocal <- with_tz(daty$readingTimeGMT, tzone = "America/Toronto")
+
+# Define holidays
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = daty,
+  x = ~readingTimeLocal,
+  y = ~hrvValue,
+  type = "scattergl",
+  mode = "markers",
+  name = "HRV",
+  marker = list(color = "#E74C3C", size = 3, opacity = 0.6)
+)
+
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))
+# Group by calendarDate to define vertical lines and labels
+daily_lines <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(readingTimeLocal),
+    x_end = max(readingTimeLocal),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    is_weekend = wday(calendarDate) %in% c(1, 7),
+    is_holiday = calendarDate %in% holidays,
+    label_color = ifelse(is_weekend | is_holiday, "#E74C3C", "#2980B9")
+  )
+
+# Add vertical lines and date labels
+max_y <- max(daty$hrvValue, na.rm = TRUE)
+
+for (i in seq_len(nrow(daily_lines))) {
+  p <- p %>%
+    add_lines(
+      x = c(daily_lines$x_start[i], daily_lines$x_start[i]),
+      y = c(min(daty$hrvValue), max_y),
+      line = list(color = "rgba(0,0,0,0.2)", dash = "dot"),
+      showlegend = FALSE,
+      inherit = FALSE
+    ) %>%
+    add_annotations(
+      x = daily_lines$x_start[i],
+      y = max_y + 5,
+      text = as.character(daily_lines$calendarDate[i]),
+      showarrow = FALSE,
+      textangle = -90,
+      font = list(size = 10, color = daily_lines$label_color[i])
+    )
+}
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Variability Over Time (HRV)",
+    xaxis = list(title = "Time (EST)"),
+    yaxis = list(title = "Heart Rate Variability (milliseconds)")
+  )
+
+p
+
+end.rcode-->
+
+
+
+
+
+table of time ranges
+<!--begin.rcode
+# Create time range summary
+time_summary <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    earliest = format(min(readingTimeLocal, na.rm = TRUE), "%H:%M:%S"),
+    latest   = format(max(readingTimeLocal, na.rm = TRUE), "%H:%M:%S"),
+    time_range = paste(earliest, "-", latest),
+    .groups = "drop"
+  ) %>%
+  select(calendarDate, time_range)
+
+# View result
+print(time_summary)
+
+end.rcode-->
+
+
+
+
+calculate statistics Kruskall-Wallis
+### Heart rate variability (HRV) was analyzed across 43 days, from August 20 to September 30. A Kruskal-Wallis test was used to compare HRV distributions between days, assessing whether any day showed a statistically different pattern. The test identified August 27 as significantly different from the others. In the box plot, August 27 is highlighted in red, while all other days are shown in blue, indicating a distinct physiological deviation on that date
+
+<!--begin.rcode
+# Group by date and compute summary stats
+stats <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    Min = min(hrvValue, na.rm = TRUE),
+    Q1 = quantile(hrvValue, 0.25, na.rm = TRUE),
+    Median = median(hrvValue, na.rm = TRUE),
+    Q3 = quantile(hrvValue, 0.75, na.rm = TRUE),
+    Max = max(hrvValue, na.rm = TRUE),
+    IQR = IQR(hrvValue, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Kruskal-Wallis test to detect significant difference
+kruskal <- kruskal.test(hrvValue ~ calendarDate, data = daty)
+
+# Identify the day with the highest median (as a proxy for anomaly)
+anomaly_day <- stats %>%
+  filter(Median == max(Median)) %>%
+  pull(calendarDate)
+
+# Add color flag
+daty <- daty %>%
+  mutate(colorFlag = ifelse(calendarDate == anomaly_day, "Anomaly", "Normal"))
+
+# Plot using plotly
+plot_ly(
+  data = daty,
+  x = ~calendarDate,
+  y = ~hrvValue,
+  type = "box",
+  color = ~colorFlag,
+  colors = c("Normal" = "#3498DB", "Anomaly" = "#E74C3C"),
+  boxpoints = "all",
+  jitter = 0.3,
+  pointpos = 0
+) %>%
+  layout(
+    title = "HRV Box Plot by Day with Anomaly Highlighted",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "HRV (ms)")
+  )
+
+print(stats)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Anomalous day identified:", anomaly_day, "\n")
+
+end.rcode-->
+
+statistics - Dunn's test
+The Dunn test is a post-hoc analysis used after a Kruskal-Wallis test to pinpoint which specific groups differ. In your case, it compares heart rate variability (HRV) across individual days. If all days are marked pink, it means the Dunn test found statistically significant differences in HRV between nearly every pair of days. This suggests that HRV fluctuated meaningfully from day to day, rather than following a stable or consistent pattern.
+<!--begin.rcode
+#install.packages("FSA")
+library(FSA)
+results <- dunnTest(hrvValue ~ calendarDate, data = daty, method = "bh")
+
+#print(results)
+library(dplyr)
+library(plotly)
+library(FSA)
+library(RColorBrewer)
+
+# Summary stats
+stats <- daty %>%
+  group_by(calendarDate) %>%
+  summarise(
+    Min = min(hrvValue, na.rm = TRUE),
+    Q1 = quantile(hrvValue, 0.25, na.rm = TRUE),
+    Median = median(hrvValue, na.rm = TRUE),
+    Q3 = quantile(hrvValue, 0.75, na.rm = TRUE),
+    Max = max(hrvValue, na.rm = TRUE),
+    IQR = IQR(hrvValue, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Kruskal-Wallis test
+kruskal <- kruskal.test(hrvValue ~ calendarDate, data = daty)
+
+# Dunn's test for pairwise differences
+dunn <- dunnTest(hrvValue ~ calendarDate, data = daty, method = "bh")
+dunn_results <- dunn$res
+
+# Extract significantly different days
+sig_days <- unique(c(dunn_results$Comparison[dunn_results$P.adj < 0.05]))
+sig_days <- unique(unlist(strsplit(sig_days, " - ")))  # split pairs into individual days
+
+# Assign color flags
+daty <- daty %>%
+  mutate(colorFlag = ifelse(calendarDate %in% sig_days, "Significant", "Normal"))
+
+# Use ColorBrewer palette
+colors <- c("Normal" = "#1f78b4", "Significant" = "#e31a1c")  # blue and red
+
+plot_ly(
+  data = daty,
+  x = ~calendarDate,
+  y = ~hrvValue,
+  type = "box",
+  color = ~colorFlag,
+  colors = colors,
+  boxpoints = "all",
+  jitter = 0.25,
+  pointpos = 0,
+  marker = list(size = 2.5, opacity = 0.6)
+) %>%
+  layout(
+    title = "HRV Box Plot by Day with Statistically Different Days Highlighted",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "HRV (ms)")
+  )
+
+print(stats)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Statistically different days identified:\n")
+print(sig_days)
+
+sig_days <- unique(unlist(strsplit(
+  dunn_results$Comparison[dunn_results$P.adj < 0.05], " - "
+))
+
+table(unlist(strsplit(
+  dunn_results$Comparison[dunn_results$P.adj < 0.05], " - "
+)))
+end.rcode-->
+
+
+
+### clears the Viewer
+<!--begin.rcode
+# Create a blank HTML file
+blank_page <- tempfile(fileext = ".html")
+save_html(tags$html(), file = blank_page)
+
+# Load it into the Viewer
+viewer <- getOption("viewer")
+viewer(blank_page)
+end.rcode-->
+
+<!--begin.rcode
+# Convert seconds to POSIXct time
+data$time <- as.POSIXct(data$seconds / 1000, origin = "1970-01-01", tz = "UTC")
+# Convert UTC to Eastern Time (automatically handles daylight saving)
+data$time <- with_tz(data$time, tzone = "America/Toronto")
+
+summary(data$heartrate)
+data <- data %>% mutate(heartrate = na.approx(heartrate, na.rm = FALSE))
+#data <- data[-1, ]
+end.rcode-->
+
+
+#analyze the time series data
+<!--begin.rcode
+skim(data)
+#preserve
+df <- data
+library(anomalize)
+# Make it a time-aware tibble
+data_ts <- as_tbl_time(data, index = time)
+# Apply anomaly detection
+results <- data_ts %>%
+  time_decompose(heartrate, method = "stl", frequency = "auto", trend = "auto") %>%
+  anomalize(remainder, method = "iqr") %>%
+  time_recompose()
+str(results)
+end.rcode-->
+
+
+<!--begin.rcode
+results$calendarDate <- as.Date(results$date)
+# Perform the left join
+tab <-  results %>%
+  left_join(de1, by = "calendarDate")
+# edit(names(tab))
+#View(tab)
+end.rcode-->
+
+
+###########################
+# this code shows the dates at the top and shows weekends in red for the bpm by date
+<!--begin.rcode
+names(tab)
+# Convert anomaly column to logical (TRUE/FALSE)
+tab$anomaly_flag <- tab$anomaly == "Yes"
+
+# Define holidays (customize as needed)
+holidays <- as.Date(c("2025-01-01", "2025-07-01", "2025-12-25"))  # Example: New Year, Canada Day, Christmas
+
+# Create base scattergl plot
+p <- plot_ly(
+  data = tab,
+  x = ~date,
+  y = ~observed,
+  type = "scattergl",
+  mode = "markers",
+  name = "Observed",
+  marker = list(
+    color = ifelse(tab$anomaly_flag, "#E74C3C", "#2C3E50"),
+    size = 3,
+    opacity = 0.6
+  )
+)
+
+# Group by calendarDate
+daily_lines <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    x_start = min(date),
+    x_end = max(date),
+    maxHR = first(maxHeartRate),
+    minHR = first(minHeartRate),
+    restHR = first(restingHeartRate)
+  ) %>%
+  mutate(
+    is_weekend = wday(calendarDate) %in% c(1, 7),  # Sunday = 1, Saturday = 7
+    is_holiday = calendarDate %in% holidays,
+    label_color = ifelse(is_weekend | is_holiday, "#E74C3C", "#2980B9")
+  )
+
+# Add horizontal lines
+p <- p %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~maxHR, yend = ~maxHR,
+    line = list(color = "#E67E22", width = 2),
+    name = "Max HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~minHR, yend = ~minHR,
+    line = list(color = "#3498DB", width = 2),
+    name = "Min HR", inherit = FALSE
+  ) %>%
+  add_segments(
+    data = daily_lines,
+    x = ~x_start, xend = ~x_end,
+    y = ~restHR, yend = ~restHR,
+    line = list(color = "#2ECC71", width = 2),
+    name = "Resting HR", inherit = FALSE
+  )
+
+# Add vertical lines and colored date labels
+max_y <- max(tab$observed, na.rm = TRUE)
+
+for (i in seq_len(nrow(daily_lines))) {
+  p <- p %>%
+    add_lines(
+      x = c(daily_lines$x_start[i], daily_lines$x_start[i]),
+      y = c(min(tab$observed), max_y),
+      line = list(color = "rgba(0,0,0,0.2)", dash = "dot"),
+      showlegend = FALSE,
+      inherit = FALSE
+    ) %>%
+    add_annotations(
+      x = daily_lines$x_start[i],
+      y = max_y + 5,
+      text = as.character(daily_lines$calendarDate[i]),
+      showarrow = FALSE,
+      textangle = -90,
+      font = list(size = 10, color = daily_lines$label_color[i])
+    )
+}
+
+# Final layout
+p <- p %>%
+  layout(
+    title = "Heart Rate Anomaly Detection with Daily Metrics",
+    xaxis = list(title = "Time (UTC)"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+p
+
+end.rcode-->
+
+
+kruskall for heart rate (bpm)
+Heart rate (bpm) was analyzed across 43 days, from August 20 to September 30. A Kruskal-Wallis test was used to compare heart distributions between days, assessing whether any day showed a statistically different pattern. The test identified Sept 24 as significantly different from the others. In the box plot, Sept 24 is highlighted in red, while all other days are shown in blue, indicating a distinct physiological deviation on that date. Also, incidentally the resting heart rate was higher than that of all other days.
+<!--begin.rcode
+# Group by calendarDate and compute summary stats
+stats <- tab %>%
+  group_by(calendarDate) %>%
+  summarise(
+    Min = min(observed, na.rm = TRUE),
+    Q1 = quantile(observed, 0.25, na.rm = TRUE),
+    Median = median(observed, na.rm = TRUE),
+    Q3 = quantile(observed, 0.75, na.rm = TRUE),
+    Max = max(observed, na.rm = TRUE),
+    IQR = IQR(observed, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Kruskal-Wallis test across calendarDate
+kruskal <- kruskal.test(observed ~ calendarDate, data = tab)
+
+# Identify anomalous day with highest median
+anomaly_day <- stats %>%
+  filter(Median == max(Median)) %>%
+  pull(calendarDate)
+
+# Add color flag to tab
+tab <- tab %>%
+  mutate(colorFlag = ifelse(calendarDate == anomaly_day, "Anomaly", "Normal"))
+
+
+# Box plot with anomaly highlight
+plot_ly(
+  data = tab,
+  x = ~calendarDate,
+  y = ~observed,
+  type = "box",
+  color = ~colorFlag,
+  colors = c("Normal" = "#3498DB", "Anomaly" = "#E74C3C"),
+  boxpoints = "all",
+  jitter = 0.3,
+  pointpos = 0
+) %>%
+  layout(
+    title = "Heart Rate Box Plot by Day with Anomaly Highlighted (Kruskal-Wallis)",
+    xaxis = list(title = "Date"),
+    yaxis = list(title = "Heart Rate (bpm)")
+  )
+
+print(stats)
+cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
+cat("Anomalous day identified:", anomaly_day, "\n")
+
+end.rcode-->
+
+
+<!--begin.rcode
+plot(mtcars$mpg)
+end.rcode-->
+
+
