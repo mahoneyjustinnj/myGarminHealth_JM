@@ -31,6 +31,9 @@ system("git pull origin main")
 system("git log --oneline")
 #3ae5dd6 Initial commit (cleaned)
 
+#check what’s ignored by running:
+system("git status --ignored")
+
 #this gives the status of the pushes and pulls
 system("git status")
 # On branch main
@@ -51,7 +54,7 @@ system("git status")
 system("git add .")
 
 #2nd - i will commit the changes using:
-system("git commit -m 'added the simulated heart rate dataset that is compiled and joined'  ")
+system("git commit -m 'ad the latest Rhtml file and health csv's  ")
 # [main 068ee51] adding latest updates to my health repo
 # 3 files changed, 85 insertions(+), 1 deletion(-)
 # create mode 100644 .gitignore
@@ -74,7 +77,29 @@ system("git status")
 # 
 # no changes added to commit (use "git add" and/or "git commit -a")
 
+#to delete files from github
+setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+#remove files from the repo
+system("git rm -r figure") # Delete the folder and its contents
+# Commit the change
+system("git commit -m 'Delete the figure folder and its contents'")
+# Push the change to GitHub
+system("git push")
 
 
+######## align everything in github with the local changes i made in this posit folder
+#get the status
+system("git status")
 
+# remove tracked files that were moved into /archive
+system("git rm --cached HR_anomaly_251003BETA.html HR_anomaly_251006BETA.html anom-tabl.html heartRate250926.html hrv251003.html hrv251006.html kruskall.html kruskall_250106_hrv.html kruskall_bpm_comparison.html read_HR250926.Rhtml read_HR250926.html read_HR250929.Rhtml read_HR250929.html read_HR251001.Rhtml read_HR251001.html test.Rhtml")
+
+# stage the modified .gitignore file
+system("git add .gitignore")
+
+# commit the removal of tracked files and the updated .gitignore
+system('git commit -m "Remove archived files from tracking and update .gitignore to ignore /archive"')
+
+# push committed changes to GitHub
+system("git push origin main")
 
