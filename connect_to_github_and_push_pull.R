@@ -54,7 +54,7 @@ system("git status")
 system("git add .")
 
 #2nd - i will commit the changes using:
-system("git commit -m 'updated the README to remove the bold print")
+system("git commit -m 'updated the README to remove the bold print'")
 # [main 068ee51] adding latest updates to my health repo
 # 3 files changed, 85 insertions(+), 1 deletion(-)
 # create mode 100644 .gitignore
