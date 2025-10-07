@@ -1,6 +1,8 @@
 sas_key
 sas_key.pub
 
+cods.py
+
 # Ignore R history and data
 .Rhistory
 .RData

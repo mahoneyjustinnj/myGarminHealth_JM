@@ -54,7 +54,7 @@ system("git status")
 system("git add .")
 
 #2nd - i will commit the changes using:
-system("git commit -m 'updated the README to remove the bold print'")
+system("git commit -m 'add the python script for fetching data'")
 # [main 068ee51] adding latest updates to my health repo
 # 3 files changed, 85 insertions(+), 1 deletion(-)
 # create mode 100644 .gitignore
@@ -103,3 +103,15 @@ system('git commit -m "Remove archived files from tracking and update .gitignore
 # push committed changes to GitHub
 system("git push origin main")
 
+####### i deleted a number of files from clean_data; i need to sync the repo with these changes
+# Stage the deleted files and the modified script
+system("git add -u")  # This stages modifications and deletions (but not new untracked files)
+
+# Optional: double-check what's staged
+system("git status")
+
+# Commit the changes
+system("git commit -m 'Deleted outdated health CSVs and updated connection script'")
+
+# Push to GitHub
+system("git push origin main")
