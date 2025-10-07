@@ -12,3 +12,5 @@ README.md
 cods.py
 # Ignore the entire python_scripts folder
 python_scripts/
+figure/
+archive/
