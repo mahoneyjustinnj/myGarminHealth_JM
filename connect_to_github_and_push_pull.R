@@ -169,3 +169,18 @@ system("git checkout 2bdf1c7 -- clean_data/heartrateStatsDate2025-10-08.csv")
 # The `-m` flag lets you include a commit message directly in the command.
 # So `-am` means: "Stage all changes to tracked files and commit them with this message."
 system("git commit -am 'Restore October 8 CSVs'")
+# Step 5: This creates a tag named v2025-10-08 pointing to the current commit.
+system("git tag v2025-10-08")
+# Step 6: This pushes both the commit and the tag to your GitHub repository.
+system("git push origin main --tags")
+
+#######restore the files from today 251009 into 'main'
+# This restores the October 9 CSVs from the commit where they were last present.
+system("git checkout 6c5c826 -- clean_data/hrv_bytime2025-10-09.csv")
+system("git checkout 6c5c826 -- clean_data/heartrate_bytime2025-10-09.csv")
+system("git checkout 6c5c826 -- clean_data/RemLevelStatsByTime2025-10-09.csv")
+system("git checkout 6c5c826 -- clean_data/sleepQualStatsDate2025-10-09.csv")
+system("git checkout 6c5c826 -- clean_data/respirStatsDate2025-10-09.csv")
+system("git checkout 6c5c826 -- clean_data/heartrateStatsDate2025-10-09.csv")
+
+
