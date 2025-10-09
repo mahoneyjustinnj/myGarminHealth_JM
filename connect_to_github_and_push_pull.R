@@ -119,7 +119,10 @@ system("git push origin main")
 #########################################################
 ################## Version Controlling ##################
 #########################################################
-
+# This will:
+# Remove the old CSVs from your local repo (but keep them on GitHub history)
+# Add the new CSVs
+# Create a clean version snapshot (v2025-10-09) you can refer back to anytime
 # Step 1: Stage all changes — including new files, modified files, and deletions.
 # This ensures your daily CSV updates (even with new filenames) are tracked.
 system("git add .")
@@ -134,11 +137,35 @@ system("git push origin main")  # Without this, your updates stay local and aren
 
 # Step 4: Create a version tag for today's update.
 # This marks a specific point in history so you can easily refer back to this exact version later.
-system("git tag v2025-10-08")   # Without tagging, you lose the ability to track daily versions precisely.
+system("git tag v2025-10-09")   # Without tagging, you lose the ability to track daily versions precisely.
 
 # Step 5: Push the tag to GitHub.
 # This makes the version tag available remotely, so you (or collaborators) can access it anytime.
-system("git push origin v2025-10-08")  # Without this, the tag only exists locally and isn't backed up.
+system("git push origin v2025-10-09")  # Without this, the tag only exists locally and isn't backed up.
 
+#######################check local tag
+# Check if the tag exists locally
+system("git tag")
 
+########################### Receover yesterday's csv's to test recovery of files
+# Step 1: This lists all commits in reverse chronological order. 
+# Look for the one from October 8 that likely contains the old CSVs.
+system("git log --oneline")
+# Step 2: This shows the details of commit 6c5c826, including which files were added or modified.
+# This helps confirm that the old CSVs are in this commit.
+system("git show 2bdf1c7")
+# Step 3: This restores the old CSV from the October 8 commit (2bdf1c7) into your working directory.
+# It pulls the file without switching branches.
+system("git checkout 2bdf1c7 -- clean_data/hrv_bytime2025-10-08.csv")
+system("git checkout 2bdf1c7 -- clean_data/heartrate_bytime2025-10-08.csv")
+system("git checkout 2bdf1c7 -- clean_data/RemLevelStatsByTime2025-10-08.csv")
+system("git checkout 2bdf1c7 -- clean_data/sleepQualStatsDate2025-10-08.csv")
+system("git checkout 2bdf1c7 -- clean_data/respirStatsDate2025-10-08.csv")
+system("git checkout 2bdf1c7 -- clean_data/heartrateStatsDate2025-10-08.csv")
+#create a tagged snapshot of yesterdays csv's
 
+# Step 4: This commits the restored October 8 CSVs to your local Git repo.
+# The `-a` flag tells Git to automatically stage all tracked files that have been modified or deleted.
+# The `-m` flag lets you include a commit message directly in the command.
+# So `-am` means: "Stage all changes to tracked files and commit them with this message."
+system("git commit -am 'Restore October 8 CSVs'")
