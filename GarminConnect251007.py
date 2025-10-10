@@ -1,5 +1,9 @@
 #!pip install garminconnect
 
+# This cell uses the `%%writefile` magic command to create a file named `cods.py`
+# in the current working directory. The content of this cell, excluding the magic
+# command line itself, is written into the file.
+
 from cods import PASSWORD, EMAIL
 # print(EMAIL)
 # print(PASSWORD)

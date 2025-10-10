@@ -182,5 +182,7 @@ system("git checkout 6c5c826 -- clean_data/RemLevelStatsByTime2025-10-09.csv")
 system("git checkout 6c5c826 -- clean_data/sleepQualStatsDate2025-10-09.csv")
 system("git checkout 6c5c826 -- clean_data/respirStatsDate2025-10-09.csv")
 system("git checkout 6c5c826 -- clean_data/heartrateStatsDate2025-10-09.csv")
-
-
+# This commits the October 9 files back into your main branch.
+system("git commit -am 'Restore October 9 CSVs after tag snapshot'")
+# This pushes the updated main branch to GitHub.
+system("git push origin main")
