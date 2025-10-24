@@ -126,22 +126,18 @@ system("git push origin main")
 # Step 1: Stage all changes — including new files, modified files, and deletions.
 # This ensures your daily CSV updates (even with new filenames) are tracked.
 system("git add .")
-
 # Step 2: Commit the staged changes with a descriptive message.
 # This records a snapshot of today's update in your Git history.
-system("git commit -m 'Daily update of Garmin CSVs'")
-
+system("git commit -m 'Daily update of Garmin CSVs 251016' ")
 # Step 3: Push the commit to the remote GitHub repository.
 # This syncs your local changes with the GitHub version of your project.
 system("git push origin main")  # Without this, your updates stay local and aren't visible on GitHub.
-
 # Step 4: Create a version tag for today's update.
 # This marks a specific point in history so you can easily refer back to this exact version later.
-system("git tag v2025-10-09")   # Without tagging, you lose the ability to track daily versions precisely.
-
+system("git tag v2025-10-16")   # Without tagging, you lose the ability to track daily versions precisely.
 # Step 5: Push the tag to GitHub.
 # This makes the version tag available remotely, so you (or collaborators) can access it anytime.
-system("git push origin v2025-10-09")  # Without this, the tag only exists locally and isn't backed up.
+system("git push origin v2025-10-16")  # Without this, the tag only exists locally and isn't backed up.
 
 #######################check local tag
 # Check if the tag exists locally

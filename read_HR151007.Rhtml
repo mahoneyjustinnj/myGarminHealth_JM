@@ -43,7 +43,7 @@ library(gt)
 #library(jsonlite)
 
 # Read the CSV
-df_raw <- read_csv("python_scripts/heart10.csv")
+df_raw <- read_csv("python_scripts/heart13.csv")
 df <- df_raw
 #edit(names(df))
 #View(df)
@@ -504,7 +504,7 @@ p <- plot_ly(
     xaxis = list(title = "Date"),
     yaxis = list(title = "HRV (ms)")
   )
-#p
+p
 #print(stats)
 cat("\nKruskal-Wallis p-value:", kruskal$p.value, "\n")
 cat("Anomalous day identified:", anomaly_day, "\n")
