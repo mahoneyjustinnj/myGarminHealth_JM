@@ -1,5 +1,21 @@
 gc() #garbage collection, to clear the memory
 setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
+system("mkdir -p /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM.ssh")
+system("cd ~ ; pwd")
+system("mv sas_key /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/")
+system("ls /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/ ")
+system("chmod 600 /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key")
+#####system("eval '$(ssh-agent -s)'")
+system("ssh-agent -s")
+system("export SSH_AUTH_SOCK;export SSH_AGENT_PID")
+system("ssh-add /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key")
+#RUN IN TERMINAL DIRECTLY
+# 1#eval "$(ssh-agent -s)"
+# 2#ssh-add /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key
+# 3#ssh -T git@github.com
+#CHECKS:
+system("git remote -v")
+
 
 # this system command is same as running from the command line
 # gives list of remote repositories connected to your local Git project,
@@ -20,6 +36,11 @@ system("git log -1")
 #   Date:   Wed Sep 24 19:55:09 2025 +0000
 # 
 # Initial commit (cleaned)
+
+# This command updates your Git repository's remote URL to use SSH instead of HTTPS.
+# It tells Git to connect to GitHub using your SSH key for authentication,
+# which avoids the need for a username/password or personal access token (PAT).
+system("git remote set-url origin git@github.com:mahoneyjustinnj/myGarminHealth_JM.git")
 
 # This will fetch and merge any new commits from your GitHub repo (cleaned_contracts) into your Posit Cloud workspace.
 system("git pull origin main")
@@ -128,7 +149,7 @@ system("git push origin main")
 system("git add .")
 # Step 2: Commit the staged changes with a descriptive message.
 # This records a snapshot of today's update in your Git history.
-system("git commit -m 'Daily update of Garmin CSVs 251024' ")
+system("git commit -m 'Daily update of Garmin CSVs 251024a' ")
 # Step 3: Push the commit to the remote GitHub repository.
 # This syncs your local changes with the GitHub version of your project.
 system("git push origin main")  # Without this, your updates stay local and aren't visible on GitHub.
