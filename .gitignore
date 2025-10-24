@@ -13,6 +13,7 @@ README.md
 
 cods.py
 create_cods.py
+pat.txt
 # Ignore the entire python_scripts folder
 python_scripts/
 figure/
