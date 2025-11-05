@@ -39,11 +39,12 @@ library(tidyr)
 library(anomalize)
 library(knitr)
 library(gt)
+library(stringr)
 #install.packages("skimr")
 #library(jsonlite)
 
 # Read the CSV
-df_raw <- read_csv("python_scripts/heart13.csv")
+df_raw <- read_csv("python_scripts/heart15.csv")
 df <- df_raw
 #edit(names(df))
 #View(df)
@@ -449,18 +450,133 @@ time_summary <- daty %>%
   ) %>%
   select(calendarDate, time_range)
 
+str(time_summary)
 # View result
 #print(time_summary)
 fx(time_summary, "time_summary is created from daty to find the earliest and latest clock times for each day of the month of the dataset")
 misd_df()
 end.rcode-->
 
+calculate the amt of time slept
+<!--begin.rcode
+time_summary <- time_summary %>%
+  mutate(
+    # Step 1: Extract start and end times from the time_range string
+    start_time = str_extract(time_range, "^\\d{2}:\\d{2}:\\d{2}"),
+    end_time   = str_extract(time_range, "\\d{2}:\\d{2}:\\d{2}$"),
+    
+    # Step 2: Convert both times to seconds since midnight
+    start_sec = period_to_seconds(hms(start_time)),
+    end_sec   = period_to_seconds(hms(end_time)),
+    
+    # Step 3: Calculate sleep_time in decimal hours
+    # If end_sec >= start_sec, subtract normally
+    # If end_sec < start_sec, it means sleep crossed midnight:
+    #   calculate time to midnight + time from midnight
+    sleep_time = if_else(
+      end_sec >= start_sec,
+      (end_sec - start_sec) / 3600,
+      ((86400 - start_sec) + end_sec) / 3600
+    )
+  ) %>%
+  # Step 4: Remove intermediate columns to keep only calendarDate, time_range, and sleep_time
+  select(calendarDate, time_range, sleep_time)
+
+end.rcode-->
+
+calculate amt of sleep each night
+<!--begin.rcode
+# Create table of average sleep time by night of the week
+sleep_by_night <- time_summary %>%
+  mutate(
+    # Shift calendarDate back by one day to reflect the night the sleep began
+    sleep_night = calendarDate - days(1),
+    
+    # Extract weekday name from the adjusted date
+    day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+  ) %>%
+  group_by(day_of_week) %>%
+  summarise(
+    average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+kable(sleep_by_night)
+end.rcode-->
+
+sleep time table embedded into amt of sleep line graph
+<!--begin.rcode
+# Step 1: Calculate average sleep time
+avg_sleep <- mean(time_summary$sleep_time, na.rm = TRUE)
+
+# Step 2: Create summary table of average sleep by night of the week
+sleep_by_night <- time_summary %>%
+  mutate(
+    sleep_night = calendarDate - days(1),
+    day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+  ) %>%
+  group_by(day_of_week) %>%
+  summarise(
+    average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+
+# Step 3: Format table text for annotation
+table_text <- paste0(
+  "Average Sleep by Night:\n",
+  paste(sleep_by_night$day_of_week, ": ", sleep_by_night$average_sleep, " hrs", collapse = "\n")
+)
+
+# Step 4: Create Plotly line graph with embedded table
+plot_ly(time_summary, x = ~calendarDate, y = ~sleep_time, type = 'scatter', mode = 'lines+markers',
+        name = 'Sleep Time') %>%
+  layout(
+    title = 'Sleep Duration Over Time',
+    xaxis = list(title = 'Date', tickangle = -90),
+    yaxis = list(title = 'Sleep Time (hours)'),
+    shapes = list(
+      list(
+        type = "line",
+        x0 = min(time_summary$calendarDate),
+        x1 = max(time_summary$calendarDate),
+        y0 = avg_sleep,
+        y1 = avg_sleep,
+        line = list(color = "red", dash = "dash")
+      )
+    ),
+    annotations = list(
+      # Annotation for average sleep line
+      list(
+        x = max(time_summary$calendarDate),
+        y = avg_sleep,
+        text = paste("Average Sleep Time:", round(avg_sleep, 2), "hrs"),
+        xref = "x",
+        yref = "y",
+        showarrow = FALSE,
+        font = list(color = "red")
+      ),
+      # Annotation for embedded table
+      list(
+        x = 0.98,
+        y = 0.98,
+        text = table_text,
+        xref = "paper",
+        yref = "paper",
+        showarrow = FALSE,
+        align = "left",
+        font = list(size = 12),
+        bgcolor = "rgba(255,255,255,0.8)",
+        bordercolor = "black",
+        borderwidth = 1
+      )
+    )
+  )
+
+end.rcode-->
 
 
 
 calculate statistics Kruskall-Wallis
 ### Heart rate variability (HRV) was analyzed across 43 days, from August 20 to September 30. A Kruskal-Wallis test was used to compare HRV distributions between days, assessing whether any day showed a statistically different pattern. The test identified August 27 as significantly different from the others. In the box plot, August 27 is highlighted in red, while all other days are shown in blue, indicating a distinct physiological deviation on that date
-
 <!--begin.rcode
 # Group by date and compute summary stats
 stats <- daty %>%
@@ -989,7 +1105,6 @@ write.csv(de1, paste0("heartrateStatsDate", date_string,".csv"), row.names = FAL
 write.csv(d_respir_stats, paste0("respirStatsDate", date_string,".csv"), row.names = FALSE)
 write.csv(sleep_qual1, paste0("sleepQualStatsDate", date_string,".csv"), row.names = FALSE)
 write.csv(data_sleep, paste0("RemLevelStatsByTime", date_string,".csv"), row.names = FALSE)
-
 end.rcode-->
 
 

@@ -1,14 +1,15 @@
 gc() #garbage collection, to clear the memory
 setwd("/cloud/project/GarminHealthAPP_JM/myGarminHealth_JM")
-system("mkdir -p /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM.ssh")
+
+# system("mkdir -p /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM.ssh")
 system("cd ~ ; pwd")
 system("mv sas_key /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/")
 system("ls /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/ ")
 system("chmod 600 /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key")
-#####system("eval '$(ssh-agent -s)'")
 system("ssh-agent -s")
 system("export SSH_AUTH_SOCK;export SSH_AGENT_PID")
 system("ssh-add /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key")
+
 #RUN IN TERMINAL DIRECTLY
 # 1#eval "$(ssh-agent -s)"
 # 2#ssh-add /cloud/project/GarminHealthAPP_JM/myGarminHealth_JM/.ssh/sas_key
@@ -149,7 +150,7 @@ system("git push origin main")
 system("git add .")
 # Step 2: Commit the staged changes with a descriptive message.
 # This records a snapshot of today's update in your Git history.
-system("git commit -m 'Daily update of Garmin CSVs 251024a' ")
+system("git commit -m 'Daily update of Garmin CSVs 251031' ")
 # Step 3: Push the commit to the remote GitHub repository.
 # This syncs your local changes with the GitHub version of your project.
 system("git push origin main")  # Without this, your updates stay local and aren't visible on GitHub.
