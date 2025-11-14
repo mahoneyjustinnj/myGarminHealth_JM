@@ -44,12 +44,11 @@ library(stringr)
 #library(jsonlite)
 
 # Read the CSV
-df_raw <- read_csv("python_scripts/heart15.csv")
+df_raw <- read_csv("python_scripts/heart16.csv")
 df <- df_raw
 #edit(names(df))
 #View(df)
 end.rcode-->
-
 
 create functions
 <!--begin.rcode
@@ -700,11 +699,11 @@ end.rcode-->
 
 #clear the Viewer
 <!--begin.rcode
-blank_page <- tempfile(fileext = ".html")
-htmltools::save_html(htmltools::tags$html(htmltools::tags$body("Viewer cleared")), file = blank_page)
-viewer <- getOption("viewer")
-if (!is.null(viewer)) viewer(blank_page)
-misd_df()
+# blank_page <- tempfile(fileext = ".html")
+# htmltools::save_html(htmltools::tags$html(htmltools::tags$body("Viewer cleared")), file = blank_page)
+# viewer <- getOption("viewer")
+# if (!is.null(viewer)) viewer(blank_page)
+# misd_df()
 end.rcode-->
 
 
