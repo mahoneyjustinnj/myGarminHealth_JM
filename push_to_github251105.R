@@ -68,15 +68,15 @@ system("git pull origin main")
 # Step 1: Stage all new, modified, and deleted files for commit
 system("git add .")
 # Step 2: Commit the staged changes with a descriptive message
-system("git commit -m 'Daily update of Garmin CSVs 2025-11-05'")
+system("git commit -m 'Daily update of Garmin CSVs 2025-11-19'")
 # Step 3: Push the new commit to the remote GitHub repository
 system("git push origin main")
 # Step 4: Create a version tag for today's update
-system("git tag v2025-11-14")
+system("git tag v2025-11-19")
 # Step 4b: Verify that the new tag was created locally
 system("git tag")
 # Step 5: Push the new tag to GitHub so it’s available remotely
-system("git push origin v2025-11-05")
+system("git push origin v2025-11-19")
 
 
 

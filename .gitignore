@@ -2,7 +2,7 @@ sas_key
 sas_key.pub
 
 cods.py
-
+troubleshoot_git.R
 # Ignore R history and data
 .Rhistory
 .RData

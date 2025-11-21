@@ -22,6 +22,8 @@ end.rcode-->
 #install.packages(c("tidyverse", "jsonlite"))
 
 # Load libraries
+# update.packages("xfun")
+# update.packages("knitr")
 library(tidyverse)
 library(lubridate)
 library(FSA)
@@ -40,11 +42,12 @@ library(anomalize)
 library(knitr)
 library(gt)
 library(stringr)
+library(grid)  # for unit()
 #install.packages("skimr")
 #library(jsonlite)
 
 # Read the CSV
-df_raw <- read_csv("python_scripts/heart16.csv")
+df_raw <- read_csv("python_scripts/heart17.csv")
 df <- df_raw
 #edit(names(df))
 #View(df)
@@ -483,23 +486,49 @@ time_summary <- time_summary %>%
 
 end.rcode-->
 
+<!--begin.rcode
+skim(time_summary)
+end.rcode-->
+
+
 calculate amt of sleep each night
 <!--begin.rcode
+# library(lubridate)
+# # Create table of average sleep time by night of the week
+# sleep_by_night <- time_summary %>%
+#   mutate(
+#     # Shift calendarDate back by one day to reflect the night the sleep began
+#     sleep_night = calendarDate - days(1),
+#     
+#     # Extract weekday name from the adjusted date
+#     day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+#   ) %>%
+#   group_by(day_of_week) %>%
+#   summarise(
+#     average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
+#     .groups = "drop"
+#   )
+# kable(sleep_by_night)
+# ABOVE CODE BROKEN
+
+
 # Create table of average sleep time by night of the week
 sleep_by_night <- time_summary %>%
   mutate(
     # Shift calendarDate back by one day to reflect the night the sleep began
     sleep_night = calendarDate - days(1),
     
-    # Extract weekday name from the adjusted date
-    day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+    # Extract weekday name (base R, avoids version issues)
+    day_of_week = weekdays(sleep_night)
   ) %>%
   group_by(day_of_week) %>%
   summarise(
     average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
     .groups = "drop"
   )
+
 kable(sleep_by_night)
+
 end.rcode-->
 
 sleep time table embedded into amt of sleep line graph
@@ -508,16 +537,31 @@ sleep time table embedded into amt of sleep line graph
 avg_sleep <- mean(time_summary$sleep_time, na.rm = TRUE)
 
 # Step 2: Create summary table of average sleep by night of the week
+# sleep_by_night <- time_summary %>%
+#   mutate(
+#     sleep_night = calendarDate - days(1),
+#     day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+#   ) %>%
+#   group_by(day_of_week) %>%
+#   summarise(
+#     average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
+#     .groups = "drop"
+#   )
+# Create table of average sleep time by night of the week
 sleep_by_night <- time_summary %>%
   mutate(
+    # Shift calendarDate back by one day to reflect the night the sleep began
     sleep_night = calendarDate - days(1),
-    day_of_week = wday(sleep_night, label = TRUE, abbr = FALSE)
+    
+    # Extract weekday name (base R, avoids version issues)
+    day_of_week = weekdays(sleep_night)
   ) %>%
   group_by(day_of_week) %>%
   summarise(
     average_sleep = round(mean(sleep_time, na.rm = TRUE), 2),
     .groups = "drop"
   )
+
 
 # Step 3: Format table text for annotation
 table_text <- paste0(
@@ -1138,8 +1182,153 @@ end.rcode-->
 <!--begin.rcode
 # setdiff(ref_unique, names(df_raw))
 # setdiff(names(df_raw), ref_unique)
+end.rcode-->
+
+
+<!--begin.rcode
+library(dplyr)
+
+d_respir_stats <- d_respir_stats %>%
+  rename(
+    date = calendarDate,
+    respMin = lowestRespirationValue,
+    respMax = highestRespirationValue,
+    respWakingAvg = avgWakingRespirationValue,
+    respSleepAvg = avgSleepRespirationValue,
+    respSleepNextAvg = avgTomorrowSleepRespirationValue
+  )
+
+end.rcode-->
+
+<!--begin.rcode
+
+# Step 1: Calculate overall average respiration (during sleep, for example)
+avg_sleep_resp <- mean(d_respir_stats$respSleepAvg, na.rm = TRUE)
+
+# Step 2: Create summary table of average sleep respiration by night of the week
+resp_by_night <- d_respir_stats %>%
+  mutate(
+    # Shift date back by one day to reflect the night the sleep began
+    sleep_night = date - days(1),
+    
+    # Extract weekday name (base R avoids version issues)
+    day_of_week = weekdays(sleep_night)
+  ) %>%
+  group_by(day_of_week) %>%
+  summarise(
+    average_resp = round(mean(respSleepAvg, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  # Order weekdays properly
+  mutate(day_of_week = factor(day_of_week,
+                              levels = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")))
+
+# Step 3: Format table text for annotation
+table_text <- paste0(
+  "Average Sleep Respiration by Night:\n",
+  paste(resp_by_night$day_of_week, ": ", resp_by_night$average_resp, " bpm", collapse = "\n")
+)
+
+# Step 4: Create ggplot line graph
+p <- ggplot(d_respir_stats, aes(x = date, y = respSleepAvg)) +
+  geom_line(color = "steelblue") +
+  geom_point(color = "steelblue") +
+  geom_hline(yintercept = avg_sleep_resp, linetype = "dashed", color = "red") +
+  annotate("text", x = max(d_respir_stats$date), y = avg_sleep_resp,
+           label = paste("Average Sleep Resp:", round(avg_sleep_resp, 2), "bpm"),
+           hjust = 1, vjust = -0.5, color = "red") +
+  # 👇 adjusted annotation for top-left placement
+  annotate("text", 
+           x = min(d_respir_stats$date) + 10,   # anchor at far left, nudged right ~10 days
+           y = max(d_respir_stats$respSleepAvg, na.rm = TRUE) - 1,  # slightly below top
+           label = table_text,
+           hjust = 0, vjust = 1,
+           size = 2, color = "black") +
+  labs(title = "Sleep Respiration Over Time",
+       x = "Date",
+       y = "Respiration (breaths per minute)") +
+  theme_minimal()
+
+ggplotly(p)
 
 
 end.rcode-->
 
+<!--begin.rcode
+
+# Step 1: Calculate overall average sleep respiration
+avg_sleep_resp <- mean(d_respir_stats$respSleepAvg, na.rm = TRUE)
+
+# Step 2: Create summary table of average sleep respiration by night of the week
+resp_by_night <- d_respir_stats %>%
+  mutate(
+    sleep_night = date - days(1),
+    day_of_week = weekdays(sleep_night)
+  ) %>%
+  group_by(day_of_week) %>%
+  summarise(
+    average_resp = round(mean(respSleepAvg, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  mutate(day_of_week = factor(day_of_week,
+    levels = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday")
+  ))
+
+# Step 3: Format table text for annotation
+table_text <- paste0(
+  "Average Sleep Respiration by Night:\n",
+  paste(resp_by_night$day_of_week, ": ", resp_by_night$average_resp, " bpm", collapse = "\n")
+)
+
+# Step 4: Create ggplot with multiple variables (no table annotation here)
+p <- ggplot(d_respir_stats, aes(x = date)) +
+  geom_line(aes(y = respSleepAvg, color = "Sleep Avg"), linewidth = 0.5) +
+  geom_point(aes(y = respSleepAvg, color = "Sleep Avg"), size = 1.5) +
+  geom_segment(aes(x = date - 0.5, xend = date + 0.5, 
+                   y = respMin, yend = respMin, color = "Resp Min"),
+               linetype = "dashed", linewidth = 0.4) +
+  geom_segment(aes(x = date - 0.5, xend = date + 0.5, 
+                   y = respMax, yend = respMax, color = "Resp Max"),
+               linetype = "dashed", linewidth = 0.4) +
+  geom_segment(aes(x = date - 0.5, xend = date + 0.5, 
+                   y = respWakingAvg, yend = respWakingAvg, color = "Waking Avg"),
+               linetype = "dashed", linewidth = 0.4) +
+  geom_hline(yintercept = avg_sleep_resp, linetype = "solid", color = "darkgreen") +
+  annotate("text", x = min(d_respir_stats$date) + 20,  y = avg_sleep_resp + 0.3,,
+           label = paste("Average Sleep Resp:", round(avg_sleep_resp, 1), "bpm"),
+           hjust = 0, vjust = -0.5, color = "darkblue") +
+  labs(title = "Respiration Over Time",
+       x = "Date",
+       y = "Respiration (breaths per minute)",
+       color = "Sleep Stat Markers") +
+  theme_minimal() +
+  theme(
+    plot.margin = unit(c(5, 40, 5, 5), "pt")  # top, right, bottom, left
+  )
+
+# Step 5: Convert to plotly and add table annotation outside plot
+fig <- ggplotly(p) %>%
+  layout(
+    margin = list(r = 220),   # make room on the right
+    legend = list(
+      title = list(text = "Sleep Stat Markers"),
+      x = 1, y = 1,
+      xanchor = "left", yanchor = "top"
+    ),
+    annotations = list(
+      list(
+        text = table_text,
+        xref = "paper", yref = "paper",
+        x = 1, y = 0.4,   # 👈 lowered so it sits beneath the legend
+        xanchor = "left", yanchor = "top",
+        align = "left",
+        showarrow = FALSE,
+        font = list(size = 10, color = "black"),
+        cliponaxis = FALSE
+      )
+    )
+  )
+
+fig
+end.rcode-->
 
