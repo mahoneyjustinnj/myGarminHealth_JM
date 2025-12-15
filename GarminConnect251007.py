@@ -79,7 +79,7 @@ while current_date <= end_date:
 df = pd.DataFrame(all_summaries)
 
 # Save to CSV
-df.to_csv("garmin_combined_summaries_from_2025-11-18.csv", index=False)
+df.to_csv("garmin_combined_summaries_from_2025-12-15.csv", index=False)
 
 
 

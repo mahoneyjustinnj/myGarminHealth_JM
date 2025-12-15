@@ -18,7 +18,7 @@ system("echo $SSH_AUTH_SOCK")  # 'system()' runs a shell command; here it prints
 # Check if ssh-agent process is running
 system("ps -e | grep ssh-agent")
 # Check if the socket file path is valid
-system("ls -l /tmp/ssh-vjzPlQp5qnvL/agent.1239")
+system("ls -l /tmp/ssh-XVsPZigLfQ1T/agent.767")
 cat("\014")
 # 1. Start a new ssh-agent process; this prints out environment variables like SSH_AUTH_SOCK and SSH_AGENT_PID
 system("ssh-agent -s")
@@ -68,15 +68,15 @@ system("git pull origin main")
 # Step 1: Stage all new, modified, and deleted files for commit
 system("git add .")
 # Step 2: Commit the staged changes with a descriptive message
-system("git commit -m 'Daily update of Garmin CSVs 2025-11-19'")
+system("git commit -m 'Daily update of Garmin CSVs 2025-12-15'")
 # Step 3: Push the new commit to the remote GitHub repository
 system("git push origin main")
 # Step 4: Create a version tag for today's update
-system("git tag v2025-11-19")
+system("git tag v2025-12-15")
 # Step 4b: Verify that the new tag was created locally
 system("git tag")
 # Step 5: Push the new tag to GitHub so it’s available remotely
-system("git push origin v2025-11-19")
+system("git push origin v2025-12-15")
 
 
 
