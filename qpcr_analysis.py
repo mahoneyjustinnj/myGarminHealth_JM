@@ -11,6 +11,7 @@ This module provides functions for analyzing quantitative PCR (qPCR) data includ
 import pandas as pd
 import numpy as np
 from scipy import stats
+from statsmodels.stats.multitest import multipletests
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -165,7 +166,6 @@ def qpcr_ttest(ct_data, reference_genes, control_samples, treatment_samples):
     results_df = pd.DataFrame(results).set_index('gene')
     
     # FDR correction
-    from statsmodels.stats.multitest import multipletests
     _, results_df['p_adjusted'], _, _ = multipletests(
         results_df['p_value'], 
         method='fdr_bh'
@@ -214,7 +214,6 @@ def qpcr_anova(ct_data, reference_genes, sample_groups):
     results_df = pd.DataFrame(results).set_index('gene')
     
     # FDR correction
-    from statsmodels.stats.multitest import multipletests
     _, results_df['p_adjusted'], _, _ = multipletests(
         results_df['p_value'], 
         method='fdr_bh'

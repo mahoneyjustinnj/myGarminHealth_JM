@@ -11,8 +11,17 @@ This module provides functions for analyzing RNA sequencing data including:
 import pandas as pd
 import numpy as np
 from scipy import stats
+from statsmodels.stats.multitest import multipletests
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+# Optional dependencies
+try:
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    SKLEARN_AVAILABLE = True
+except ImportError:
+    SKLEARN_AVAILABLE = False
 
 
 def calculate_tpm(counts, gene_lengths):
@@ -189,7 +198,6 @@ def perform_ttest(treatment, control):
     results_df = pd.DataFrame(results).set_index('gene')
     
     # FDR correction (Benjamini-Hochberg)
-    from statsmodels.stats.multitest import multipletests
     _, results_df['p_adjusted'], _, _ = multipletests(
         results_df['p_value'], 
         method='fdr_bh'
@@ -344,8 +352,10 @@ def plot_pca(expression_data, sample_labels=None, title='PCA Plot', figsize=(10,
     tuple
         (fig, pc_df) - matplotlib figure and PC coordinates DataFrame
     """
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import StandardScaler
+    if not SKLEARN_AVAILABLE:
+        raise ImportError(
+            "plot_pca requires scikit-learn. Install with: pip install scikit-learn"
+        )
     
     # Transpose and standardize
     data_t = expression_data.T

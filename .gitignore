@@ -31,3 +31,4 @@ pca_plot*.png
 qpcr_bar_plot*.png
 ct_values*.png
 efficiency_curve*.png
+integration_comparison.png
