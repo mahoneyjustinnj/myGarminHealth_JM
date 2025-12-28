@@ -9,8 +9,6 @@ troubleshoot_git.R
 
 to_run_from_cmd_line.txt
 
-README.md
-
 cods.py
 create_cods.py
 pat.txt
@@ -20,3 +18,16 @@ figure/
 archive/
 plots/
 .ssh/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Ignore generated analysis plots
+*_example.png
+volcano_plot*.png
+heatmap*.png
+pca_plot*.png
+qpcr_bar_plot*.png
+ct_values*.png
+efficiency_curve*.png
